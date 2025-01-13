@@ -1,0 +1,62 @@
+.conversas {
+    max-height: 74vh; /* Altura fixa de 80% da altura da viewport */
+    min-height: 73vh;
+    width: 100%; /* Largura de 100% do contêiner pai */
+    overflow-y: auto; /* Barra de rolagem vertical */
+    overflow-x: hidden; /* Esconder barra de rolagem horizontal, se necessário */
+    word-wrap: break-word; /* Quebra de linha automática para manter o texto dentro da div */
+    box-sizing: border-box; /* Inclui padding e bordas na largura e altura totais */
+    border: 2px solid rgb(238, 234, 234);
+    border-radius: 20px;
+    padding: 10px;
+}
+
+.form {
+    display: flex;
+    flex-direction: column; /* Alinha os elementos verticalmente */
+    width: 100vw; /* Largura total da viewport */
+    margin-top: 5x;
+    border: 1px solid rgb(238, 234, 234);
+    padding: 5px;
+}
+
+.form input,
+.form textarea,
+.form select,
+.form button {
+    width: 100%; /* Ocupa 100% da largura do contêiner pai */
+    height: 30px; /* Altura fixa de 150px */
+    margin-bottom: 10px; /* Espaço entre os campos */
+    box-sizing: border-box; /* Inclui padding e bordas no tamanho total */
+}
+
+.header{
+    display: flex;
+    width: 100vw;
+    justify-content: space-around;
+}
+
+.msguser{
+    text-align: right;
+    background-color: rgb(26, 104, 61);
+    color: rgb(255, 255, 255);
+    padding: 3px;
+    border-radius: 5px;
+    margin: 5px; 
+    width: 90%;
+    padding-right: 10px;
+    float: right;
+    display: block;
+}
+
+.msgbot{
+    text-align: left;
+    background-color: rgba(33, 112, 56, 0.384);
+    color: rgb(255, 255, 255);
+    padding: 3px;
+    border-radius: 5px;
+    margin: 5px; 
+    width: 90%;
+    padding-left: 10px;
+    float: left;
+}
