@@ -2,7 +2,7 @@ import Head from 'next/head'
 import Image from 'next/image'
 import Link from 'next/Link'
 import styles from '../styles/Home.module.css'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 function TextToImage() {
     const [text, setText] = useState('');
@@ -10,6 +10,38 @@ function TextToImage() {
     const [imageUrl, setImageUrl] = useState('');
     const [error, setError] = useState('');
     const [conversas, setConversas] = useState([]);
+    const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
+    const [emailUser, setEmailUser] = useState('');
+
+    useEffect(() => {
+        const fetchEmailUser = async () => {
+            try {
+                const response = await fetch('/api/carregaEmail', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar o email');
+                }
+
+                const data = await response.json();
+                setEmailUser(data.emailUser);
+            } catch (err) {
+                setError(err.message);
+            }
+        };
+
+        fetchEmailUser();
+    }, []);
+
+    useEffect(() => {
+        if (emailUser) {
+            fetchConversas();
+        }
+    }, [emailUser]);
 
     async function addMessageToConversas(message, sender) {
         setConversas((prevConversas) => [
@@ -20,13 +52,16 @@ function TextToImage() {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        await addMessageToConversas(text, 'user');
+
+        const textoSalvo = text;
+        setText('');
+        await addMessageToConversas(textoSalvo, 'user');
         const response = await fetch('/api/textToImage/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ text, model }),
+            body: JSON.stringify({ textoSalvo, model }),
         });
 
         const data = await response.json();
@@ -51,44 +86,51 @@ function TextToImage() {
         return conversas;
     }
 
-    useEffect(() => {
-        async function fetchConversas() {
-            try {
-                const conversas = await recuperaConversas('flavioleone8383@gmail.com', 'TextToImage');
-                setConversas(conversas);
-            } catch (err) {
-                setError('Erro ao carregar conversas.');
-                console.error(err);
-            }
+    async function fetchConversas() {
+        try {
+            const conversas = await recuperaConversas(emailUser, 'TextToImage');
+            setConversas(conversas);
+        } catch (err) {
+            setError('Erro ao carregar conversas.');
+            console.error(err);
         }
+    }
 
-        fetchConversas();
-    }, []);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (conversasEndRef.current) {
+                conversasEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            }
+        }, 1000); // Adiciona um pequeno atraso para garantir que a rolagem ocorra após a renderização
+
+        return () => clearTimeout(timer); // Limpa o timer ao desmontar
+    }, [conversas]);
 
     return (
         <div>
             <header className={styles.header}>
-                <h1><Link href="./">Index</Link></h1>
-                <h1>Text To Image</h1>
+                <p><Link href="./">Index</Link></p>
+                <p>Text To Image</p>
             </header>
             <div className={styles.conversas}>
                 {conversas.length > 0 ? (
-                    conversas.map((conversa) => (
-                        <div key={conversa.id} className={styles.conversaItem}>
-                            <p className={styles.msguser}><strong>Usuário:</strong> {conversa.msguser}</p>
-                            <p><strong>Bot:</strong> <br /><Image src={conversa.msgbot} width={500} height={500} alt="Imagem gerada a partir do texto" /></p>
+                    conversas.map((conversa, index) => (
+                        <div key={index} className={styles.conversaItem}>
+                            {conversa.msguser && <p className={styles.msguser}>{conversa.msguser}</p>}
+                            {conversa.msgbot && <p className={styles.msgbot}><img src={conversa.msgbot} width={400} height={400} alt="Imagem gerada a partir do texto" /></p>} {/*<Image src={conversa.msgbot} width={400} height={400} alt="Imagem gerada a partir do texto" />*/}
                         </div>
                     ))
                 ) : (
                     <p>Nenhuma conversa encontrada.</p>
                 )}
+                <div ref={conversasEndRef}></div>
             </div>
 
-            {imageUrl && (
+            {/**{imageUrl && (
                 <div>
                     <img src={imageUrl} alt="Imagem gerada a partir do texto" />
                 </div>
-            )}
+            )} */}
             <form onSubmit={handleSubmit} className={styles.form}>
                 <textarea
                     value={text}
@@ -96,10 +138,11 @@ function TextToImage() {
                     placeholder="Digite seu texto aqui"
                 />
                 <select value={model} onChange={(e) => setModel(e.target.value)}>
-                    <option value="dall-e-3">DALL-E 3</option>
+                    {/**<option value="dall-e-3">DALL-E 3</option> */}
                     <option value="FLUX.1-dev">FLUX.1-dev</option>  {/* Ajuste se necessário */}
-                    <option value="stable-diffusion-xl-base-1.0">Stable Diffusion xl-base-1.0</option>  {/* Ajuste se necessário */}
                     <option value="stable-diffusion-v1-5">Stable Diffusion v1-5</option>  {/* Ajuste se necessário */}
+                    <option value="stable-diffusion-xl-base-1.0">Stable Diffusion xl-base-1.0</option>  {/* Ajuste se necessário */}
+                    {/*<option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>   /* Ajuste se necessário */}
 
                 </select>
                 <button type="submit">Converter</button>

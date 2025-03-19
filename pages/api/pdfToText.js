@@ -5,7 +5,8 @@ import path from 'path';
 import formidable from 'formidable';
 import mysql from 'mysql2/promise';
 
-async function saveMessages(email, msgUser, msgBot) {
+const emailUser = process.env.EMAILUSER;
+async function saveMessages(email, msgUser, msgBot, pdfUser) {
   const connection = await mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -14,9 +15,13 @@ async function saveMessages(email, msgUser, msgBot) {
   });
 
   try {
+    // Formatar o texto antes de salvar
+    const formattedMsgUser = formatText(msgUser);
+    const formattedMsgBot = formatText(msgBot);
+
     const [result] = await connection.execute(
-      'INSERT INTO PDFToText (email, msguser, msgbot) VALUES (?, ?, ?)',
-      [email, msgUser, msgBot]
+      'INSERT INTO PDFToText (email, msguser, msgbot, linkArquivo) VALUES (?, ?, ?, ?)',
+      [email, formattedMsgUser, formattedMsgBot, pdfUser]
     );
 
     if (result.affectedRows > 0) {
@@ -40,7 +45,21 @@ export const config = {
   },
 };
 
-// Função para parse do formulário utilizando Promise
+function formatText(text) {
+  if (!text) return '';
+
+  // Adiciona quebras de linha
+  let formattedText = text.replace(/\n/g, '<br>');
+
+  // Transforma texto entre ** em negrito
+  formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+  // Transforma texto entre * em itálico
+  formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  return formattedText;
+}
+
 const parseForm = (req) => {
   return new Promise((resolve, reject) => {
     const form = formidable({ multiples: false, keepExtensions: true }); // Mantém a extensão do arquivo
@@ -48,22 +67,6 @@ const parseForm = (req) => {
       if (err) reject(err);
       resolve({ fields, files });
     });
-  });
-};
-
-// Função auxiliar para criar uma pasta temporária
-const createTempDir = () => {
-  const tempDir = path.join(process.cwd(), 'temp');
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir);
-  }
-  return tempDir;
-};
-
-// Função auxiliar para remover o arquivo temporário após o upload
-const deleteTempFile = (filePath) => {
-  fs.unlink(filePath, (err) => {
-    if (err) console.error('Erro ao deletar arquivo temporário:', err);
   });
 };
 
@@ -75,24 +78,30 @@ export default async function handler(req, res) {
 
       const prompt = fields.prompt && Array.isArray(fields.prompt) ? fields.prompt[0] : fields.prompt; // Trata o prompt corretamente
       const pdfFile = files.pdf && Array.isArray(files.pdf) ? files.pdf[0] : files.pdf; // Trata o arquivo PDF
+      const pastaPDF = fields.filePath && Array.isArray(fields.filePath) ? fields.filePath[0] : fields.filePath; // Trata o caminho do arquivo PDF
 
-      // Verifique se o arquivo PDF foi enviado corretamente
       if (!pdfFile || !pdfFile.filepath) {
         return res.status(400).json({ error: 'Arquivo PDF não encontrado.' });
       }
 
-      // Cria o diretório temporário
-      const tempDir = createTempDir();
-      const tempFilePath = path.join(tempDir, pdfFile.newFilename); // Usa o nome do arquivo correto
+      // Define o diretório de destino para os PDF
+      const pdfDir = path.join(process.cwd(), 'public/pdf');
+      if (!fs.existsSync(pdfDir)) {
+        fs.mkdirSync(pdfDir);
+      }
 
-      // Move o arquivo para a pasta temporária (renomeia se necessário)
-      fs.renameSync(pdfFile.filepath, tempFilePath);
+      // Caminho final do arquivo, garantindo a extensão original do PDF
+      const originalExtension = path.extname(pdfFile.originalFilename); // Obtém a extensão original do arquivo
+      const pdfFilePath = path.join(pdfDir, pdfFile.newFilename + originalExtension);
+
+      // Move o arquivo para o diretório de destino com a extensão correta
+      fs.renameSync(pdfFile.filepath, pdfFilePath);
 
       const fileManager = new GoogleAIFileManager(process.env.API_KEY);
 
       // Upload do arquivo PDF para o Google AI
-      const uploadResponse = await fileManager.uploadFile(tempFilePath, {
-        mimeType: 'application/pdf', // Define o mimeType como PDF
+      const uploadResponse = await fileManager.uploadFile(pdfFilePath, {
+        mimeType: 'application/pdf',
         displayName: 'PDF do usuário',
       });
 
@@ -107,18 +116,19 @@ export default async function handler(req, res) {
       const result = await model.generateContent([
         {
           fileData: {
-            mimeType: 'application/pdf', // Usa o mimeType correto
+            mimeType: 'application/pdf',
             fileUri: fileUri,
           },
         },
         { text: prompt },
       ]);
 
-      // Após o upload, exclui o arquivo temporário
-      deleteTempFile(tempFilePath);
-      await saveMessages("flavioleone8383@gmail.com", prompt, result.response.text());
+      const respApi = result.response.text();
+
+      await saveMessages(emailUser, prompt, respApi, pastaPDF);
+
       // Enviar resposta ao cliente
-      return res.status(200).json({ response: result.response.text() });
+      return res.status(200).json({ response: respApi });
     } catch (error) {
       console.error('Error:', error);
       return res.status(500).json({ error: 'Erro ao processar o PDF' });

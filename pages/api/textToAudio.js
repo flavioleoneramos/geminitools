@@ -3,6 +3,7 @@ import path from 'path';
 import OpenAI from 'openai';
 import mysql from 'mysql2/promise';
 
+const emailUser = process.env.EMAILUSER;
 async function saveMessages(email, msgUser, msgBot) {
   const connection = await mysql.createConnection({
     host: 'localhost',
@@ -47,6 +48,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ message: 'Texto e voz são obrigatórios' });
     }
 
+  
     try {
         // Faz a chamada para a API de síntese de fala da OpenAI
         const mp3 = await openai.audio.speech.create({
@@ -63,7 +65,7 @@ export default async function handler(req, res) {
         // Converte o arrayBuffer em um buffer e grava no arquivo
         const buffer = Buffer.from(await mp3.arrayBuffer());
         await fs.promises.writeFile(filePath, buffer);
-        await saveMessages("flavioleone8383@gmail.com", text, `/audios/${fileName}`);
+        await saveMessages(emailUser, text, `/audios/${fileName}`);
         // Retorna a URL acessível para o áudio
         res.status(200).json({ audioUrl: `/audios/${fileName}` });
 

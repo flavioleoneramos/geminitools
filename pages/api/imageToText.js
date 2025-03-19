@@ -5,7 +5,9 @@ import path from 'path';
 import formidable from 'formidable';
 import mysql from 'mysql2/promise';
 
-async function saveMessages(email, msgUser, msgBot) {
+const emailUser = process.env.EMAILUSER;
+
+async function saveMessages(email, msgUser, msgBot, imageUser) {
   const connection = await mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -14,9 +16,12 @@ async function saveMessages(email, msgUser, msgBot) {
   });
 
   try {
+    const formattedMsgUser = formatText(msgUser);
+    const formattedMsgBot = formatText(msgBot);
+
     const [result] = await connection.execute(
-      'INSERT INTO ImageToText (email, msguser, msgbot) VALUES (?, ?, ?)',
-      [email, msgUser, msgBot]
+      'INSERT INTO ImageToText (email, msguser, msgbot, linkArquivo) VALUES (?, ?, ?, ?)',
+      [email, formattedMsgUser, formattedMsgBot, imageUser]
     );
 
     if (result.affectedRows > 0) {
@@ -32,6 +37,22 @@ async function saveMessages(email, msgUser, msgBot) {
   } finally {
     await connection.end();
   }
+}
+
+
+function formatText(text) {
+  if (!text) return '';
+
+  // Adiciona quebras de linha
+  let formattedText = text.replace(/\n/g, '<br>');
+
+  // Transforma texto entre ** em negrito
+  formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+  // Transforma texto entre * em itálico
+  formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  return formattedText;
 }
 
 export const config = {
@@ -79,6 +100,7 @@ export default async function handler(req, res) {
         },
       });
 
+
       // Parse do formulário
       form.parse(req, async (err, fields, files) => {
         if (err) {
@@ -88,13 +110,14 @@ export default async function handler(req, res) {
 
         const prompt = fields.prompt && Array.isArray(fields.prompt) ? fields.prompt[0] : fields.prompt; // Trata o prompt corretamente
         const imageFile = files.image && Array.isArray(files.image) ? files.image[0] : files.image; // Trata o arquivo de imagem
+        const pastaImagem = fields.filePath && Array.isArray(fields.filePath) ? fields.filePath[0] : fields.filePath;
 
         // Verifique se o arquivo de imagem foi enviado corretamente
         if (!imageFile || !imageFile.filepath) {
           return res.status(400).json({ error: 'Arquivo de imagem não encontrado.' });
         }
 
-        const imageUser = `http://localhost:3000/photos/${path.basename(imageFile.filepath)}`; // Caminho relativo da imagem salva
+        //const imageUser = `C:/xampp/htdocs/funcoes_api_gemini_upload/public/photos/${path.basename(imageFile.filepath)}`; // Caminho relativo da imagem salva
 
         // Continue com sua lógica existente para processar o arquivo com a API do Google AI
         const fileManager = new GoogleAIFileManager(process.env.API_KEY);
@@ -123,9 +146,11 @@ export default async function handler(req, res) {
           { text: prompt },
         ]);
 
+        const respApi = result.response.text();
+
         // Enviar resposta ao cliente
-        await saveMessages("flavioleone8383@gmail.com", `${prompt} \n ${imageUser}`, result.response.text());
-        return res.status(200).json({ response: result.response.text(), imagePath: imageUser });
+        await saveMessages(emailUser, prompt, respApi, pastaImagem);
+        return res.status(200).json({ response: respApi });
       });
     } catch (error) {
       console.error('Error:', error);

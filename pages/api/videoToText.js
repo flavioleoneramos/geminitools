@@ -6,7 +6,24 @@ import os from 'os';
 import path from 'path';
 import mysql from 'mysql2/promise';
 
-async function saveMessages(email, msgUser, msgBot) {
+const emailUser = process.env.EMAILUSER;
+
+function formatText(text) {
+  if (!text) return '';
+
+  // Adiciona quebras de linha
+  let formattedText = text.replace(/\n/g, '<br>');
+
+  // Transforma texto entre ** em negrito
+  formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+  // Transforma texto entre * em itálico
+  formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  return formattedText;
+}
+
+async function saveMessages(email, msgUser, msgBot, videoPath) {
   const connection = await mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -15,9 +32,12 @@ async function saveMessages(email, msgUser, msgBot) {
   });
 
   try {
+    const formattedMsgUser = formatText(msgUser);
+    const formattedMsgBot = formatText(msgBot);
+
     const [result] = await connection.execute(
-      'INSERT INTO VideoToText (email, msguser, msgbot) VALUES (?, ?, ?)',
-      [email, msgUser, msgBot]
+      'INSERT INTO VideoToText (email, msguser, msgbot, linkArquivo) VALUES (?, ?, ?, ?)',
+      [email, formattedMsgUser, formattedMsgBot, videoPath]
     );
 
     if (result.affectedRows > 0) {
@@ -41,7 +61,6 @@ export const config = {
   },
 };
 
-// Função para aguardar o processamento do arquivo
 async function waitForFileToBeActive(fileId, fileManager, maxAttempts = 10, delay = 10000) {
   let attempts = 0;
   let file = await fileManager.getFile(fileId);
@@ -66,71 +85,70 @@ async function waitForFileToBeActive(fileId, fileManager, maxAttempts = 10, dela
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    //console.log("Recebendo a requisição POST");
-
-    const form = formidable({ uploadDir: os.tmpdir(), keepExtensions: true }); // Instanciando o formidable
+    const form = formidable({ uploadDir: os.tmpdir(), keepExtensions: true });
 
     form.parse(req, async (err, fields, files) => {
-      console.log("Analisando a requisição");
       if (err) {
         console.error('Erro ao processar o arquivo:', err);
         return res.status(500).json({ error: 'Erro ao processar o arquivo.' });
       }
 
-      const prompt = fields.prompt && fields.prompt[0]; // Pegando o primeiro valor de prompt
-      const videoFile = files.video && files.video[0]; // Pegando o primeiro arquivo de vídeo
-
-      // Logs para verificar se o arquivo e o prompt foram recebidos corretamente
-      //console.log("Prompt recebido:", prompt);
-      //console.log("Arquivo de vídeo recebido:", videoFile);
-
-      if (!videoFile || !videoFile.filepath) {
-        console.error('Arquivo de vídeo não encontrado');
-        return res.status(400).json({ error: 'Arquivo de vídeo não encontrado.' });
-      }
+      const prompt = fields.prompt && fields.prompt[0];
+      const videoFile = files.video && files.video[0];
 
       try {
-        const fileManager = new GoogleAIFileManager(process.env.API_KEY);
+        if (videoFile && videoFile.filepath) {
+          // Processar arquivo de vídeo enviado
+          const publicPath = path.resolve('./public/videos');
+          const videoPath = path.join(publicPath, path.basename(videoFile.filepath));
 
-        console.log('Fazendo upload do vídeo para o Google File Manager');
-        // Fazer upload do vídeo
-        const uploadResponse = await fileManager.uploadFile(videoFile.filepath, {
-          mimeType: 'video/mp4',
-          displayName: 'Vídeo do usuário',
-        });
+          if (!fs.existsSync(publicPath)) {
+            fs.mkdirSync(publicPath, { recursive: true });
+          }
 
-        console.log('Upload realizado com sucesso, verificando o estado do arquivo');
-        // Verificar se o arquivo está ativo
-        const processedFile = await waitForFileToBeActive(uploadResponse.file.name, fileManager);
+          fs.renameSync(videoFile.filepath, videoPath);
 
-        console.log('Arquivo ativo, iniciando a IA para gerar conteúdo');
-        // Inicializar a IA para gerar o conteúdo
-        const genAI = new GoogleGenerativeAI(process.env.API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+          console.log('Vídeo salvo em public/videos:', videoPath);
 
-        // Gerar o conteúdo usando o vídeo
-        const result = await model.generateContent([
-          {
-            fileData: {
-              mimeType: processedFile.mimeType,
-              fileUri: processedFile.uri,
+          // Converter o caminho para usar barras "/" e pegar apenas a parte relativa a "/public/"
+          const relativePath = videoPath.replace(/\\/g, '/').split('/public/')[1];
+          const finalPath = `/${relativePath}`;
+          console.log('Caminho relativo do vídeo:', finalPath);
+
+          const fileManager = new GoogleAIFileManager(process.env.API_KEY);
+
+          const uploadResponse = await fileManager.uploadFile(videoPath, {
+            mimeType: 'video/mp4',
+            displayName: 'Vídeo do usuário',
+          });
+
+          const processedFile = await waitForFileToBeActive(uploadResponse.file.name, fileManager);
+          const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+          const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+
+          const result = await model.generateContent([
+            {
+              fileData: {
+                mimeType: processedFile.mimeType,
+                fileUri: processedFile.uri,
+              },
             },
-          },
-          { text: prompt },
-        ]);
+            { text: prompt },
+          ]);
 
-        console.log('Conteúdo gerado com sucesso, enviando resposta' + result.response.text());
-        const resp = result.response.text();
-        await saveMessages("flavioleone8383@gmail.com", prompt, resp);
-        // Enviar a resposta
-        return res.status(200).json({ response: resp });
+          const resp = result.response.text();
+          await saveMessages(emailUser, prompt, resp, finalPath); // Salvar o caminho relativo no banco de dados
+
+          return res.status(200).json({ response: resp });
+        } else {
+          return res.status(400).json({ error: 'Nenhum vídeo enviado.' });
+        }
       } catch (error) {
         console.error('Erro ao processar o vídeo:', error);
         return res.status(500).json({ error: 'Erro ao processar o vídeo.' });
       }
     });
   } else {
-    console.error('Método não permitido');
     return res.status(405).json({ error: 'Método não permitido' });
   }
 }

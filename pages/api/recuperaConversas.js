@@ -32,11 +32,11 @@ async function handler(req, res) {
     });
 
     const query = `
-      SELECT id, nome, email, msguser, msgbot, contexto
+      SELECT id, nome, email, msguser, msgbot, contexto, linkArquivo
       FROM \`${nomeTabela}\`
       WHERE email = ?
       ORDER BY id ASC
-      LIMIT 100
+      LIMIT 1000
     `;
 
     const [rows] = await connection.execute(query, [email]);

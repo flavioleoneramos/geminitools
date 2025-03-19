@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head'
 import Image from 'next/image'
 import Link from 'next/Link'
@@ -9,8 +9,42 @@ export default function TextToAudio() {
     const [voice, setVoice] = useState('alloy');
     const [audioUrl, setAudioUrl] = useState('');
     const [conversas, setConversas] = useState([]);
+    const [error, setError] = useState('');
+    const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
+    const [emailUser, setEmailUser] = useState('');
+
 
     const voices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+
+    useEffect(() => {
+        const fetchEmailUser = async () => {
+            try {
+                const response = await fetch('/api/carregaEmail', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar o email');
+                }
+
+                const data = await response.json();
+                setEmailUser(data.emailUser);
+            } catch (err) {
+                setError(err.message);
+            }
+        };
+
+        fetchEmailUser();
+    }, []);
+
+    useEffect(() => {
+        if (emailUser) {
+            fetchConversas();
+        }
+    }, [emailUser]);
 
     async function addMessageToConversas(message, sender) {
         setConversas((prevConversas) => [
@@ -35,6 +69,7 @@ export default function TextToAudio() {
             const data = await response.json();
             //setAudioUrl(data.audioUrl); // Recebe a URL do áudio gerada no backend
             await addMessageToConversas(data.audioUrl, 'bot');
+            setText('');
         } else {
             console.error('Erro ao converter texto em áudio');
         }
@@ -57,39 +92,47 @@ export default function TextToAudio() {
         return conversas;
     }
 
-    useEffect(() => {
-        async function fetchConversas() {
-            try {
-                const conversas = await recuperaConversas('flavioleone8383@gmail.com', 'TextToAudio');
-                setConversas(conversas);
-            } catch (err) {
-                setError('Erro ao carregar conversas.');
-                console.error(err);
-            }
+    async function fetchConversas() {
+        try {
+            const conversas = await recuperaConversas(emailUser, 'TextToAudio');
+            setConversas(conversas);
+        } catch (err) {
+            setError('Erro ao carregar conversas.');
+            console.error(err);
         }
+    }
 
-        fetchConversas();
-    }, []);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (conversasEndRef.current) {
+                conversasEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            }
+        }, 1000); // Adiciona um pequeno atraso para garantir que a rolagem ocorra após a renderização
+
+        return () => clearTimeout(timer); // Limpa o timer ao desmontar
+    }, [conversas]);
 
     return (
         <div>
             <header className={styles.header}>
-                <h1><Link href="./">Index</Link></h1>
-                <h1>Text ToÁudio</h1>
+                <p><Link href="./">Index</Link></p>
+                <p>Text To Audio</p>
             </header>
             <main>
                 <div className={styles.conversas}>
                     {conversas.length > 0 ? (
-                        conversas.map((conversa) => (
-                            <div key={conversa.id} className={styles.conversaItem}>
-                                <p className={styles.msguser}><strong>Usuário:</strong> {conversa.msguser}</p>
-                                <p><strong>Bot:</strong> <audio controls src={conversa.msgbot} /></p>
+                        conversas.map((conversa, index) => (
+                            <div key={index} className={styles.conversaItem}>
+                                {conversa.msguser && <p className={styles.msguser}>{conversa.msguser}</p>}
+                                {conversa.msgbot && <p className={styles.msgbot}><audio controls src={conversa.msgbot} /></p>}
                             </div>
                         ))
                     ) : (
                         <p>Nenhuma conversa encontrada.</p>
                     )}
+                    <div ref={conversasEndRef}></div>
                 </div>
+
                 {audioUrl && (
                     <div>
                         <audio controls src={audioUrl} />

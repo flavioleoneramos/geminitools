@@ -1,36 +1,88 @@
 import Head from 'next/head'
 import Link from 'next/Link'
 import styles from '../styles/Home.module.css'
-import { useState, useEffect } from 'react';
-
+import { useState, useEffect, useRef } from 'react';
 export default function TextToText() {
 
     const [inputText, setInputText] = useState('');
     const [result, setResult] = useState('');
     const [model, setModel] = useState('gemini-2.0-flash-exp'); // Novo state para o modelo
     const [conversas, setConversas] = useState([]);
+    const [error, setError] = useState('');
+    const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
+    const [emailUser, setEmailUser] = useState('');
+
+    useEffect(() => {
+        const fetchEmailUser = async () => {
+            try {
+                const response = await fetch('/api/carregaEmail', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar o email');
+                }
+
+                const data = await response.json();
+                setEmailUser(data.emailUser);
+            } catch (err) {
+                setError(err.message);
+            }
+        };
+
+        fetchEmailUser();
+    }, []);
+
+    useEffect(() => {
+        if (emailUser) {
+            fetchConversas();
+        }
+    }, [emailUser]);
+
+    function formatText(text) {
+        if (!text) return '';
+      
+        // Adiciona quebras de linha
+        let formattedText = text.replace(/\n/g, '<br>');
+      
+        // Transforma texto entre ** em negrito
+        formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+      
+        // Transforma texto entre * em itálico
+        formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+      
+        return formattedText;
+      }
 
     async function addMessageToConversas(message, sender) {
+        const formattedMessage = await formatText(message);
         setConversas((prevConversas) => [
             ...prevConversas,
-            { msguser: sender === 'user' ? message : '', msgbot: sender === 'bot' ? message : '' }
+            { msguser: sender === 'user' ? formattedMessage : '', msgbot: sender === 'bot' ? formattedMessage : '' }
         ]);
     }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        await addMessageToConversas(inputText,'user');
+
+        const textSalvo = inputText;
+        setInputText('');
+        await addMessageToConversas(textSalvo, 'user');
         const response = await fetch('/api/textToText/',
             {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ texto: inputText, model }) // Envia o texto e o modelo
+                body: JSON.stringify({ texto: textSalvo, model }) // Envia o texto e o modelo
             });
         const data = await response.json();
         //setResult(data.message);
-        await addMessageToConversas(data.message,'bot');
+        await addMessageToConversas(data.message, 'bot');
+
     };
 
     async function recuperaConversas(email, nomeTabela) {
@@ -47,22 +99,36 @@ export default function TextToText() {
         }
 
         const conversas = await response.json();
-        return conversas;
+
+        // Formatar o texto ao carregar
+        const formattedConversas = conversas.map(conversa => ({
+            ...conversa,
+            msguser: formatText(conversa.msguser),
+            msgbot: formatText(conversa.msgbot),
+        }));
+
+        return formattedConversas;
+    }
+
+    async function fetchConversas() {
+        try {
+            const conversas = await recuperaConversas(emailUser, 'TextToText');
+            setConversas(conversas);
+        } catch (err) {
+            setError('Erro ao carregar conversas.');
+            console.error(err);
+        }
     }
 
     useEffect(() => {
-        async function fetchConversas() {
-            try {
-                const conversas = await recuperaConversas('flavioleone8383@gmail.com', 'TextToText');
-                setConversas(conversas);
-            } catch (err) {
-                setError('Erro ao carregar conversas.');
-                console.error(err);
+        const timer = setTimeout(() => {
+            if (conversasEndRef.current) {
+                conversasEndRef.current.scrollIntoView({ behavior: 'smooth' });
             }
-        }
+        }, 1000); // Adiciona um pequeno atraso para garantir que a rolagem ocorra após a renderização
 
-        fetchConversas();
-    }, []);
+        return () => clearTimeout(timer); // Limpa o timer ao desmontar
+    }, [conversas]);
 
     return (
         <div className={styles.container}>
@@ -73,22 +139,24 @@ export default function TextToText() {
             </Head>
 
             <main className={styles.main}>
-                <header className={styles.header}>
-                    <h1><Link href="./">Index</Link></h1>
-                    <h1>Text To Text</h1>
+                <header className={styles.header1}>
+                    <p><Link href="./">Index</Link></p>
+                    <p>Text To Text</p>
                 </header>
-                <div className={styles.conversas}>
+                <div className={styles.conversas1}>
                     {conversas.length > 0 ? (
-                        conversas.map((conversa) => (
-                            <div key={conversa.id} className={styles.conversaItem}>
-                                <p className={styles.msguser}><strong>Usuário:</strong> {conversa.msguser}</p>
-                                <p className={styles.msgbot}><strong>Bot:</strong> {conversa.msgbot}</p>
+                        conversas.map((conversa, index) => (
+                            <div key={index} className={styles.conversaItem}>
+                                {conversa.msguser && <p className={styles.msguser} dangerouslySetInnerHTML={{ __html: conversa.msguser }}></p>}
+                                {conversa.msgbot && <p className={styles.msgbot} dangerouslySetInnerHTML={{ __html: conversa.msgbot }}></p>}
                             </div>
                         ))
                     ) : (
                         <p>Nenhuma conversa encontrada.</p>
                     )}
+                    <div ref={conversasEndRef}></div>
                 </div>
+
                 <div>
                     <p>{result}</p>
                 </div>
@@ -96,10 +164,11 @@ export default function TextToText() {
                     <form onSubmit={handleSubmit} className={styles.form}>
                         <select value={model} onChange={(e) => setModel(e.target.value)}>
                             <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
-                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
                         </select>
-                        <input
-                            type="text"
+                        <textarea
+                            className={styles.textarea1}
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                             placeholder="Digite o texto aqui"

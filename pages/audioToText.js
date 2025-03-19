@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/Link';
 import styles from '../styles/Home.module.css';
@@ -9,24 +9,78 @@ const AudioTotext = () => {
     const [responseText, setResponseText] = useState('');
     const [error, setError] = useState('');
     const [conversas, setConversas] = useState([]);
+    const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
+    const [emailUser, setEmailUser] = useState('');
 
-    
-  async function addMessageToConversas(message, sender) {
-    setConversas((prevConversas) => [
-      ...prevConversas,
-      { msguser: sender === 'user' ? message : '', msgbot: sender === 'bot' ? message : '' }
-    ]);
-  }
+    useEffect(() => {
+        const fetchEmailUser = async () => {
+            try {
+                const response = await fetch('/api/carregaEmail', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar o email');
+                }
+
+                const data = await response.json();
+                setEmailUser(data.emailUser);
+            } catch (err) {
+                setError(err.message);
+            }
+        };
+
+        fetchEmailUser();
+    }, []);
+
+    useEffect(() => {
+        if (emailUser) {
+            fetchConversas();
+        }
+    }, [emailUser]);
+
+    async function addMessageToConversas(message, sender) {
+        setConversas((prevConversas) => [
+            ...prevConversas,
+            { msguser: sender === 'user' ? message : '', msgbot: sender === 'bot' ? message : '' }
+        ]);
+    }
+
+    async function salvarArquivo(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/salvarArquivo', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('Erro ao salvar o arquivo');
+        }
+
+        const data = await response.json();
+        return data.filePath;
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        const promptSalvo = prompt;
+
+        const filePath = await salvarArquivo(audioFile);
+
+        await addMessageToConversas(`${promptSalvo} <br> <audio controls src="${filePath}"/>`, 'user');
+        setPrompt('');
         setError('');  // Limpa erros anteriores
 
         const formData = new FormData();
-        formData.append('prompt', prompt);
+        formData.append('prompt', promptSalvo);
         formData.append('audio', audioFile); // Adiciona o arquivo de áudio ao form data
-
-        await addMessageToConversas(prompt, 'user');
+        formData.append('filePath', filePath); // Adiciona o caminho do arquivo ao form data
 
         try {
             const response = await fetch('/api/audioToText/', {
@@ -39,8 +93,9 @@ const AudioTotext = () => {
             }
 
             const data = await response.json();
-            //setResponseText(data.response); // Exibe a resposta do backend
-            await addMessageToConversas(data.response, 'bot');
+            const respApi = data.response;
+            const formatedText = await formatText(respApi);
+            await addMessageToConversas(formatedText, 'bot');
         } catch (err) {
             setError(err.message);
         }
@@ -60,49 +115,77 @@ const AudioTotext = () => {
         }
 
         const conversas = await response.json();
-        return conversas;
+
+        // Formatar o texto ao carregar
+        const formattedConversas = conversas.map(conversa => ({
+            ...conversa,
+            msguser: formatText(`${conversa.msguser} <br> <audio controls src="${conversa.linkArquivo}"/>`),
+            msgbot: formatText(conversa.msgbot),
+        }));
+
+        return formattedConversas;
+    }
+
+    async function fetchConversas() {
+        try {
+            const conversas = await recuperaConversas(emailUser, 'AudioToText');
+            setConversas(conversas);
+        } catch (err) {
+            setError('Erro ao carregar conversas.');
+            console.error(err);
+        }
     }
 
     useEffect(() => {
-        async function fetchConversas() {
-            try {
-                const conversas = await recuperaConversas('flavioleone8383@gmail.com', 'AudioToText');
-                setConversas(conversas);
-            } catch (err) {
-                setError('Erro ao carregar conversas.');
-                console.error(err);
+        const timer = setTimeout(() => {
+            if (conversasEndRef.current) {
+                conversasEndRef.current.scrollIntoView({ behavior: 'smooth' });
             }
-        }
+        }, 1000); // Adiciona um pequeno atraso para garantir que a rolagem ocorra após a renderização
 
-        fetchConversas();
-    }, []);
+        return () => clearTimeout(timer); // Limpa o timer ao desmontar
+    }, [conversas]);
+
+    function formatText(text) {
+        if (!text) return '';
+
+        // Adiciona quebras de linha
+        let formattedText = text.replace(/\n/g, '<br>');
+
+        // Transforma texto entre ** em negrito
+        formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+        // Transforma texto entre * em itálico
+        formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+        return formattedText;
+    }
 
     return (
         <div>
             <header className={styles.header}>
-                <h1><Link href="./">Index</Link></h1>
-                <h1>Áudio To Text</h1>
+                <p><Link href="./">Index</Link></p>
+                <p>Audio To Text</p>
             </header>
             <div className={styles.conversas}>
                 {conversas.length > 0 ? (
-                    conversas.map((conversa) => (
-                        <div key={conversa.id} className={styles.conversaItem}>
-                            <p className={styles.msguser}><strong>Usuário:</strong> {conversa.msguser}</p>
-                            <p className={styles.msgbot}><strong>Bot:</strong> {conversa.msgbot}</p>
+                    conversas.map((conversa, index) => (
+                        <div key={index} className={styles.conversaItem}>
+                            {conversa.msguser && <p className={styles.msguser} dangerouslySetInnerHTML={{ __html: conversa.msguser }}></p>}
+                            {conversa.msgbot && <p className={styles.msgbot} dangerouslySetInnerHTML={{ __html: conversa.msgbot }}></p>}
                         </div>
                     ))
                 ) : (
                     <p>Nenhuma conversa encontrada.</p>
                 )}
+                <div ref={conversasEndRef}></div>
             </div>
             <form onSubmit={handleSubmit} className={styles.form}>
-                <label>Prompt:</label>
-                <input
-                    type="text"
+                <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     required
-                    placeholder="Digite o prompt"
+                    placeholder="Envie arquivos de áudio para obter respostas"
                 />
 
                 <input
@@ -122,7 +205,7 @@ const AudioTotext = () => {
                 </div>
             )}
 
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {/*error && <p style={{ color: 'red' }}>{error}</p>*/}
         </div>
     );
 };

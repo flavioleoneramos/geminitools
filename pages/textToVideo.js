@@ -1,9 +1,31 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import Link from 'next/Link'
-import styles from '../styles/Home.module.css'
+import Head from 'next/head';
+import Image from 'next/image';
+import Link from 'next/Link';
+import { useState } from 'react';
+import styles from '../styles/Home.module.css';
 
 export default function TextToVideo() {
+    const [text, setText] = useState('');
+    const [videoUrl, setVideoUrl] = useState(null);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch('/api/textToVideo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ prompt: text }),
+            });
+
+            const data = await response.json();
+            setVideoUrl(data.videoUrl);
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    };
+
     return (
         <div className={styles.container}>
             <Head>
@@ -14,14 +36,30 @@ export default function TextToVideo() {
 
             <main className={styles.main}>
                 <header className={styles.header}>
-                    <ul>
-                        <li>
-                            <h1><Link href="./">Index</Link></h1>
-                        </li>
-                    </ul>
-                </header>
-            </main>
 
+                    <p><Link href="./">Index</Link></p>
+                    <p>Text To Video</p>
+                </header>
+                <div>
+                    <h1>Text To Video</h1>
+                    <p>Funcionalidade a espera da abertura pública da api Sora AI.</p>
+                </div>
+                {/**
+                 * <form onSubmit={handleSubmit}>
+                    <textarea 
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        placeholder="Digite o texto para gerar o vídeo"
+                        rows="5"
+                        cols="33"
+                    />
+                    <button type="submit">Gerar Vídeo</button>
+                </form>
+                {videoUrl && (
+                    <video controls src={videoUrl} className={styles.videoPlayer}></video>
+                )}
+                 */}
+            </main>
         </div>
-    )
+    );
 }
