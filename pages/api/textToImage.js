@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const emailUser = process.env.EMAILUSER;
 //const emailUser = "flavioleone8383@gmail.com";
-
+const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY, // Chave da API no arquivo .env
 });
@@ -232,7 +232,80 @@ export default async function handler(req, res) {
           // Retorna a imagem em base64 como resposta
           res.status(200).json({ imageUrl: imgpath2 });
           break;
+        case 'gemini-2.0-flash-exp-image-generation':
+          const contents = text;
 
+          // Set responseModalities to include "Image" so the model can generate an image
+          const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash-exp-image-generation",
+            generationConfig: {
+              responseModalities: ['Text', 'Image']
+            },
+          });
+
+          try {
+            const response = await model.generateContent(contents);
+            for (const part of response.response.candidates[0].content.parts) {
+              // Based on the part type, either show the text or save the image
+              if (part.text) {
+                console.log(part.text);
+                return res.status(200).json({ textUrl: part.text });
+              } else if (part.inlineData) {
+                const imageData = part.inlineData.data;
+                const buffer = Buffer.from(imageData, 'base64');
+
+                // Gera um nome único para o arquivo
+                const uniqueName = `${uuidv4()}.jpg`;
+
+                // Define o caminho para salvar a imagem
+                const uploadPath = path.join(process.cwd(), '/public/imagens', uniqueName);
+
+                // Cria a pasta se não existir
+                if (!fs.existsSync(path.dirname(uploadPath))) {
+                  fs.mkdirSync(path.dirname(uploadPath), { recursive: true });
+                }
+
+                // Salva a imagem no sistema de arquivos
+                fs.writeFileSync(uploadPath, buffer);
+
+                // Retorna o caminho relativo da imagem
+                const relativePath = `/imagens/${uniqueName}`;
+                console.log('Imagem salva em:', relativePath);
+                await saveMessages(emailUser, text, relativePath);
+                return res.status(200).json({ imageUrl: relativePath });
+                
+              } /**else if (part.inlineData && part.text) {
+                const imageData = part.inlineData.data;
+                const textUrl = part.text;
+                const buffer = Buffer.from(imageData, 'base64');
+
+                // Gera um nome único para o arquivo
+                const uniqueName = `${uuidv4()}.jpg`;
+
+                // Define o caminho para salvar a imagem
+                const uploadPath = path.join(process.cwd(), '/public/imagens', uniqueName);
+
+                // Cria a pasta se não existir
+                if (!fs.existsSync(path.dirname(uploadPath))) {
+                  fs.mkdirSync(path.dirname(uploadPath), { recursive: true });
+                }
+
+                // Salva a imagem no sistema de arquivos
+                fs.writeFileSync(uploadPath, buffer);
+
+                // Retorna o caminho relativo da imagem
+                const relativePath = `/imagens/${uniqueName}`;
+                console.log('Imagem com texto salva em:', relativePath);
+                await saveMessages(emailUser, text, relativePath);
+                res.status(200).json({ imageUrl: relativePath, textUrl: textUrl });
+                return;
+              } */
+            }
+          } catch (error) {
+            console.error("Erro ao gerar conteúdo:", error);
+            res.status(500).json({ error: 'Falha ao gerar a imagem' });
+          }
+          break;
         default:
           return "Modelo não encontrado";
       }

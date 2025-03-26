@@ -6,8 +6,9 @@ import React, { useState, useEffect, useRef } from 'react';
 
 function TextToImage() {
     const [text, setText] = useState('');
-    const [model, setModel] = useState('FLUX.1-dev');
+    const [model, setModel] = useState('gemini-2.0-flash-exp-image-generation');
     const [imageUrl, setImageUrl] = useState('');
+    const [textUrl, setTextUrl] = useState('');
     const [error, setError] = useState('');
     const [conversas, setConversas] = useState([]);
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
@@ -66,6 +67,11 @@ function TextToImage() {
 
         const data = await response.json();
         //setImageUrl(data.imageUrl); // Atualiza o estado com a URL da imagem
+        console.log(data.imageUrl);
+        if (data.textUrl) {
+            console.log(data.textUrl);
+            alert(data.textUrl);
+        }
         await addMessageToConversas(data.imageUrl, 'bot');
     };
 
@@ -142,6 +148,7 @@ function TextToImage() {
                     <option value="FLUX.1-dev">FLUX.1-dev</option>  {/* Ajuste se necessário */}
                     <option value="stable-diffusion-v1-5">Stable Diffusion v1-5</option>  {/* Ajuste se necessário */}
                     <option value="stable-diffusion-xl-base-1.0">Stable Diffusion xl-base-1.0</option>  {/* Ajuste se necessário */}
+                    <option value="gemini-2.0-flash-exp-image-generation">gemini-2.0-flash-exp-image-generation</option>  {/* Ajuste se necesario */}
                     {/*<option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>   /* Ajuste se necessário */}
 
                 </select>

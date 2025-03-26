@@ -47,6 +47,7 @@ export default function ImageToImage() {
         setImage(e.target.files[0]);
     };
 
+
     async function addMessageToConversas(message, sender) {
         setConversas((prevConversas) => [
             ...prevConversas,
@@ -74,17 +75,22 @@ export default function ImageToImage() {
 
         const promptSalvo = text;
         setText('');
-        const formData = new FormData();
-        formData.append('image', image);
-        formData.append('text', promptSalvo);
+        
+        const filePath = await salvarArquivo(image);
 
-        await addMessageToConversas(promptSalvo, 'user');
+        const formData = new FormData();
+        formData.append('text', promptSalvo);
+        formData.append('image', image); // Adiciona o arquivo de imagem ao form data
+        formData.append('filePath', filePath); // Adiciona o caminho do arquivo ao form data
+
+        await addMessageToConversas(`${promptSalvo} <br> <img src="/public${filePath}"/>`, 'user');
         //return;
         try {
             const response = await fetch('/api/imageToImage/', {
                 method: 'POST',
                 body: formData
             });
+            
             const data = await response.json();
             const resptSalvo = data.imageUrl;
             await addMessageToConversas(resptSalvo, 'bot');
@@ -96,6 +102,23 @@ export default function ImageToImage() {
             setResponseMessage('Error uploading images.');
         }
     };
+
+    async function salvarArquivo(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/salvarArquivo', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('Erro ao salvar o arquivo');
+        }
+
+        const data = await response.json();
+        return data.filePath;
+    }
 
     async function recuperaConversas(email, nomeTabela) {
         const response = await fetch('/api/recuperaConversas', {
@@ -160,7 +183,7 @@ export default function ImageToImage() {
                         conversas.map((conversa, index) => (
                             <div key={index} className={styles.conversaItem}>
                                 {conversa.msguser && <p className={styles.msguser}>{conversa.msguser}</p>}
-                                {conversa.msgbot && <p className={styles.msgbot}><Image src={conversa.msgbot} width={400} height={400} alt="Imagem gerada a partir do texto" /></p>}
+                                {conversa.msgbot && <p className={styles.msgbot}><img src={conversa.msgbot} width={400} height={400} alt="Imagem gerada a partir do texto" /></p>}
                             </div>
                         ))
                     ) : (
@@ -169,9 +192,9 @@ export default function ImageToImage() {
                     <div ref={conversasEndRef}></div>
                 </div>
 
-                <div>
+                {/**<div>
                     {responseMessage && <p><img src={responseMessage} alt="Generated Image" /></p>}
-                </div>
+                </div> */}
                 <div>
                     <form onSubmit={handleSubmit} className={styles.form}>
                         <input type="file" accept="image/*" onChange={handleImageChange} required />

@@ -1,12 +1,13 @@
-// /pages/api/imageToImage.js
-
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleAIFileManager } from '@google/generative-ai/server';
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
 import mysql from 'mysql2/promise';
 import { v4 as uuidv4 } from 'uuid';
 import fetch from 'node-fetch';
+import formidable from 'formidable';
 const emailUser = process.env.EMAILUSER;
 async function saveMessages(email, msgUser, msgBot) {
   const connection = await mysql.createConnection({
@@ -37,17 +38,10 @@ async function saveMessages(email, msgUser, msgBot) {
   }
 }
 
-async function salvarArquivo(imageUrl) {
+async function salvarArquivo(buffer) {
   try {
-    // Faz o download da imagem
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error('Erro ao fazer o download da imagem');
-    }
-    const buffer = await response.buffer();
-
     // Gera um nome único para o arquivo
-    const uniqueName = `${uuidv4()}.png`;
+    const uniqueName = `${uuidv4()}.jpg`;
 
     // Define o caminho para salvar a imagem
     const uploadPath = path.join(process.cwd(), '/public/imagens', uniqueName);
@@ -68,90 +62,108 @@ async function salvarArquivo(imageUrl) {
   }
 }
 
-// Configura a OpenAI com a chave de API
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Configura o multer para salvar as imagens no servidor
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(process.cwd(), 'public/photos');
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-
-const upload = multer({ storage });
-
 export const config = {
   api: {
-    bodyParser: false, // Desativa o bodyParser para permitir o uso do multer
+    bodyParser: false, // Desabilita o bodyParser padrão do Next.js para processar FormData
   },
 };
-
-// Middleware para tratar o upload das imagens
-const uploadMiddleware = upload.fields([{ name: 'image', maxCount: 1 }]);
-
 export default async function handler(req, res) {
-  try {
-    if (req.method === 'POST') {
-      // Faz o upload das imagens
-      await new Promise((resolve, reject) => {
-        uploadMiddleware(req, res, (err) => {
-          if (err) return reject(err);
-          resolve();
-        });
+  if (req.method === 'POST') {
+    try {
+      // Configura o formidable para salvar o arquivo diretamente na pasta public/photos
+      const form = formidable({
+        uploadDir: path.join(process.cwd(), 'public/photos'),
+        keepExtensions: true,
+        filename: (name, ext, part, form) => {
+          return `${Date.now()}-${part.originalFilename}`;
+        },
       });
 
-      // Obtém os caminhos das imagens e o texto
-      const imagePath = req.files['image'][0].path;
-      const { text } = req.body;
 
-      // Envia as imagens e o texto para a API da OpenAI
-      const response = await openai.images.edit({
-        image: fs.createReadStream(imagePath),
-        prompt: text,
-        n: 1,
-        size: '1024x1024',
+      // Parse do formulário
+      form.parse(req, async (err, fields, files) => {
+        if (err) {
+          console.error('Error parsing form:', err);
+          return res.status(400).json({ error: 'Erro ao processar o formulário' });
+        }
+
+        const text = fields.text && Array.isArray(fields.text) ? fields.text[0] : fields.text; // Trata o text corretamente
+        const imageFile = files.image && Array.isArray(files.image) ? files.image[0] : files.image; // Trata o arquivo de imagem
+        const pastaImagem = fields.filePath && Array.isArray(fields.filePath) ? fields.filePath[0] : fields.filePath;
+
+        console.log('text:', text);
+        //console.log('imageFile:', imageFile);
+        console.log('pastaImagem:', pastaImagem);
+        // Verifique se o arquivo de imagem foi enviado corretamente
+        if (!imageFile || !imageFile.filepath) {
+          return res.status(400).json({ error: 'Arquivo de imagem não encontrado.' });
+        }
+
+        const imgEdit = await generateImage(text, pastaImagem);
+        return res.status(200).json({ imageUrl: imgEdit });
       });
-
-      const imageUrl = response.data[0].url;
-      console.log('URL da imagem gerada:', imageUrl);
-
-      const imgSalvo = await salvarArquivo(imageUrl);
-      await saveMessages(emailUser, text, imgSalvo);
-      // Retorna a URL da imagem gerada para o frontend
-      res.status(200).json({ imageUrl: imgSalvo });
-    } else {
-      res.status(405).json({ error: 'Método não permitido' });
+    } catch (error) {
+      console.error('Error:', error);
+      return res.status(500).json({ error: 'Erro ao processar a imagem' });
     }
-  } catch (error) {
-    console.error('Erro ao processar imagens:', error);
-    res.status(500).json({ error: 'Erro ao processar imagens.' });
+  } else {
+    return res.status(405).json({ error: 'Método não permitido' });
   }
 }
 
+async function generateImage(text, imageFilePath) {
+
+  // Garante que o caminho completo seja usado
+  //const imagePath = path.join(process.cwd(), 'public', imageFilePath);
+
+  // Verifica se o arquivo existe antes de tentar lê-lo
+  /*if (!fs.existsSync(imagePath)) {
+    throw new Error(`Arquivo não encontrado: ${imagePath}`);
+  }*/
+
+  // Lê o arquivo e converte para base64
+  const imageData = fs.readFileSync(imageFilePath);
+  const base64Image = imageData.toString('base64');
+  console.log('Imagem convertida para base64 com sucesso.');
+  // Prepare the content parts
+  const contents = [
+    { text: text },
+    {
+      inlineData: {
+        mimeType: "image/jpeg",
+        data: base64Image
+      }
+    }
+  ];
+  const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+
+  // Set responseModalities to include "Image" so the model can generate an image
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash-exp-image-generation",
+    generationConfig: {
+      responseModalities: ['Text', 'Image']
+    },
+  });
+
+  try {
+    const response = await model.generateContent(contents);
+    for (const part of response.response.candidates[0].content.parts) {
+      // Based on the part type, either show the text or save the image
+
+      if (part.text) {
+        console.log(part.text);
+        return part.text;
+      } else if (part.inlineData) {
+        const imageData = part.inlineData.data;
+        const buffer = Buffer.from(imageData, 'base64');
+        fs.writeFileSync(`${imageFilePath}`, buffer);
+        console.log(`/public/${imageFilePath}`);
+        return imageFilePath;
+      }
 
 
-function formatText(text) {
-  if (!text) return '';
-
-  // Adiciona quebras de linha
-  let formattedText = text.replace(/\n/g, '<br>');
-
-  // Transforma texto entre ** em negrito
-  formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-
-  // Transforma texto entre * em itálico
-  formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-  return formattedText;
+    }
+  } catch (error) {
+    console.error("Error generating content:", error);
+  }
 }
-
-
