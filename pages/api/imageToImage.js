@@ -1,15 +1,19 @@
-import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GoogleAIFileManager } from '@google/generative-ai/server';
 import fs from 'fs';
 import path from 'path';
-import multer from 'multer';
-import mysql from 'mysql2/promise';
 import { v4 as uuidv4 } from 'uuid';
-import fetch from 'node-fetch';
 import formidable from 'formidable';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import mysql from 'mysql2/promise';
+
+export const config = {
+  api: {
+    bodyParser: false, // Desabilita o bodyParser para lidar com multipart/form-data
+  },
+};
+
 const emailUser = process.env.EMAILUSER;
-async function saveMessages(email, msgUser, msgBot) {
+
+async function saveMessages(email, msgUser, msgBot, imageUser) {
   const connection = await mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -18,9 +22,12 @@ async function saveMessages(email, msgUser, msgBot) {
   });
 
   try {
+    //const formattedMsgUser = formatText(msgUser);
+    //const formattedMsgBot = formatText(msgBot);
+
     const [result] = await connection.execute(
-      'INSERT INTO imagetoimage (email, msguser, msgbot) VALUES (?, ?, ?)',
-      [email, msgUser, msgBot]
+      'INSERT INTO ImageToImage (email, msguser, msgbot, linkArquivo) VALUES (?, ?, ?, ?)',
+      [email, msgUser, msgBot, imageUser]
     );
 
     if (result.affectedRows > 0) {
@@ -36,6 +43,21 @@ async function saveMessages(email, msgUser, msgBot) {
   } finally {
     await connection.end();
   }
+}
+
+function formatText(text) {
+  if (!text) return '';
+
+  // Adiciona quebras de linha
+  let formattedText = text.replace(/\n/g, '<br>');
+
+  // Transforma texto entre ** em negrito
+  formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+  // Transforma texto entre * em itálico
+  formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  return formattedText;
 }
 
 async function salvarArquivo(buffer) {
@@ -62,108 +84,100 @@ async function salvarArquivo(buffer) {
   }
 }
 
-export const config = {
-  api: {
-    bodyParser: false, // Desabilita o bodyParser padrão do Next.js para processar FormData
-  },
-};
-export default async function handler(req, res) {
-  if (req.method === 'POST') {
-    try {
-      // Configura o formidable para salvar o arquivo diretamente na pasta public/photos
-      const form = formidable({
-        uploadDir: path.join(process.cwd(), 'public/photos'),
-        keepExtensions: true,
-        filename: (name, ext, part, form) => {
-          return `${Date.now()}-${part.originalFilename}`;
+async function generateImage(text, imagePath) {
+  try {
+    // Lê o arquivo da imagem e converte para Base64
+    const imageData = fs.readFileSync(imagePath);
+    const base64Image = imageData.toString('base64');
+
+    // Prepara os conteúdos para a API do Gemini
+    const contents = [
+      { text: text },
+      {
+        inlineData: {
+          mimeType: 'image/jpeg', // Certifique-se de usar o MIME type correto
+          data: base64Image,
         },
-      });
+      },
+    ];
 
+    const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
-      // Parse do formulário
-      form.parse(req, async (err, fields, files) => {
-        if (err) {
-          console.error('Error parsing form:', err);
-          return res.status(400).json({ error: 'Erro ao processar o formulário' });
-        }
+    // Configura o modelo do Gemini
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash-exp-image-generation',
+      generationConfig: {
+        responseModalities: ['Text', 'Image'],
+      },
+    });
+    
 
-        const text = fields.text && Array.isArray(fields.text) ? fields.text[0] : fields.text; // Trata o text corretamente
-        const imageFile = files.image && Array.isArray(files.image) ? files.image[0] : files.image; // Trata o arquivo de imagem
-        const pastaImagem = fields.filePath && Array.isArray(fields.filePath) ? fields.filePath[0] : fields.filePath;
+    // Gera o conteúdo usando a API do Gemini
+    const response = await model.generateContent(contents);
 
-        console.log('text:', text);
-        //console.log('imageFile:', imageFile);
-        console.log('pastaImagem:', pastaImagem);
-        // Verifique se o arquivo de imagem foi enviado corretamente
-        if (!imageFile || !imageFile.filepath) {
-          return res.status(400).json({ error: 'Arquivo de imagem não encontrado.' });
-        }
+    for (const part of response.response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        const generatedImageBase64 = part.inlineData.data;
+        const buffer = Buffer.from(generatedImageBase64, 'base64');
 
-        const imgEdit = await generateImage(text, pastaImagem);
-        return res.status(200).json({ imageUrl: imgEdit });
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({ error: 'Erro ao processar a imagem' });
+        // Salva a imagem gerada no servidor
+        const uniqueName = `${uuidv4()}.jpg`;
+        const generatedImagePath = path.join(process.cwd(), '/public/imagens', uniqueName);
+        fs.writeFileSync(generatedImagePath, buffer);
+
+        // Retorna o caminho relativo da imagem gerada
+        return `/imagens/${uniqueName}`;
+      }
     }
-  } else {
-    return res.status(405).json({ error: 'Método não permitido' });
+
+    throw new Error('Nenhuma imagem foi gerada pela API do Gemini.');
+  } catch (error) {
+    console.error('Erro ao gerar a imagem:', error);
+    throw error;
   }
 }
 
-async function generateImage(text, imageFilePath) {
+export default async function handler(req, res) {
+  if (req.method === 'POST') {
+    try {
+      // Inicializa o formidable para processar o formulário
+      const form = formidable({ multiples: true });
 
-  // Garante que o caminho completo seja usado
-  //const imagePath = path.join(process.cwd(), 'public', imageFilePath);
+      form.parse(req, async (err, fields, files) => {
+        if (err) {
+          console.error('Erro ao processar o formulário:', err);
+          return res.status(400).json({ error: 'Erro ao processar o formulário' });
+        }
 
-  // Verifica se o arquivo existe antes de tentar lê-lo
-  /*if (!fs.existsSync(imagePath)) {
-    throw new Error(`Arquivo não encontrado: ${imagePath}`);
-  }*/
+        const text = fields.text && Array.isArray(fields.text) ? fields.text[0] : fields.text; // Trata o texto corretamente
+        const imageFile = files.image && Array.isArray(files.image) ? files.image[0] : files.image; // Trata o arquivo de imagem
 
-  // Lê o arquivo e converte para base64
-  const imageData = fs.readFileSync(imageFilePath);
-  const base64Image = imageData.toString('base64');
-  console.log('Imagem convertida para base64 com sucesso.');
-  // Prepare the content parts
-  const contents = [
-    { text: text },
-    {
-      inlineData: {
-        mimeType: "image/jpeg",
-        data: base64Image
-      }
+        if (!text || !imageFile) {
+          return res.status(400).json({ error: 'Texto ou imagem ausente na requisição.' });
+        }
+
+        // Lê o buffer da imagem enviada pelo usuário
+        const imageBuffer = fs.readFileSync(imageFile.filepath);
+
+        // Salva a imagem enviada pelo usuário no servidor
+        const userImagePath = await salvarArquivo(imageBuffer);
+
+        console.log('Imagem do usuário salva em:', userImagePath);
+
+        // Gera a imagem editada usando a API do Gemini
+        const generatedImagePath = await generateImage(text, imageFile.filepath);
+
+        // Salva as mensagens no banco de dados
+        await saveMessages(emailUser, text, generatedImagePath, userImagePath);
+
+        // Retorna o caminho relativo da imagem gerada
+        return res.status(200).json({ imageUrl: generatedImagePath });
+      });
+    } catch (error) {
+      console.error('Erro ao processar a requisição:', error);
+      res.status(500).json({ error: 'Erro ao processar a requisição.' });
     }
-  ];
-  const genAI = new GoogleGenerativeAI(process.env.API_KEY);
-
-  // Set responseModalities to include "Image" so the model can generate an image
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash-exp-image-generation",
-    generationConfig: {
-      responseModalities: ['Text', 'Image']
-    },
-  });
-
-  try {
-    const response = await model.generateContent(contents);
-    for (const part of response.response.candidates[0].content.parts) {
-      // Based on the part type, either show the text or save the image
-
-      if (part.text) {
-        console.log(part.text);
-        return part.text;
-      } else if (part.inlineData) {
-        const imageData = part.inlineData.data;
-        const buffer = Buffer.from(imageData, 'base64');
-        fs.writeFileSync(`${imageFilePath}`, buffer);
-        console.log(`/public/${imageFilePath}`);
-        return imageFilePath;
-      }
-
-
-    }
-  } catch (error) {
-    console.error("Error generating content:", error);
+  } else {
+    res.status(405).json({ error: 'Método não permitido' });
   }
 }

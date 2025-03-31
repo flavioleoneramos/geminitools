@@ -189,7 +189,7 @@ export default function VideoToText() {
         </div>
 
         <div>
-          {uploadMessage}
+          {/*uploadMessage*/}
         </div>
         <div>
           <form onSubmit={handleSubmit} className={styles.form}>

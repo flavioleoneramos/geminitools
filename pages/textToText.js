@@ -44,18 +44,18 @@ export default function TextToText() {
 
     function formatText(text) {
         if (!text) return '';
-      
+
         // Adiciona quebras de linha
         let formattedText = text.replace(/\n/g, '<br>');
-      
+
         // Transforma texto entre ** em negrito
         formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-      
+
         // Transforma texto entre * em itálico
         formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
-      
+
         return formattedText;
-      }
+    }
 
     async function addMessageToConversas(message, sender) {
         const formattedMessage = await formatText(message);

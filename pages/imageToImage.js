@@ -75,7 +75,7 @@ export default function ImageToImage() {
 
         const promptSalvo = text;
         setText('');
-        
+
         const filePath = await salvarArquivo(image);
 
         const formData = new FormData();
@@ -83,14 +83,14 @@ export default function ImageToImage() {
         formData.append('image', image); // Adiciona o arquivo de imagem ao form data
         formData.append('filePath', filePath); // Adiciona o caminho do arquivo ao form data
 
-        await addMessageToConversas(`${promptSalvo} <br> <img src="/public${filePath}"/>`, 'user');
+        await addMessageToConversas(`${promptSalvo} <br> <img src="${filePath}" width="400" height="400"/>`, 'user');
         //return;
         try {
             const response = await fetch('/api/imageToImage/', {
                 method: 'POST',
                 body: formData
             });
-            
+
             const data = await response.json();
             const resptSalvo = data.imageUrl;
             await addMessageToConversas(resptSalvo, 'bot');
@@ -182,8 +182,31 @@ export default function ImageToImage() {
                     {conversas.length > 0 ? (
                         conversas.map((conversa, index) => (
                             <div key={index} className={styles.conversaItem}>
-                                {conversa.msguser && <p className={styles.msguser}>{conversa.msguser}</p>}
-                                {conversa.msgbot && <p className={styles.msgbot}><img src={conversa.msgbot} width={400} height={400} alt="Imagem gerada a partir do texto" /></p>}
+                                {/* Renderiza o texto e a imagem enviada pelo usuário */}
+                                {conversa.msguser && (
+                                    <p className={styles.msguser}>
+                                        <span dangerouslySetInnerHTML={{ __html: conversa.msguser }}></span><br />
+                                        {conversa.linkArquivo && (
+                                            <img
+                                                src={conversa.linkArquivo}
+                                                width={400}
+                                                height={400}
+                                                alt="Imagem enviada pelo usuário"
+                                            />
+                                        )}
+                                    </p>
+                                )}
+                                {/* Renderiza a resposta do bot */}
+                                {conversa.msgbot && (
+                                    <p className={styles.msgbot}>
+                                        <img
+                                            src={conversa.msgbot}
+                                            width={400}
+                                            height={400}
+                                            alt="Imagem gerada pelo bot"
+                                        />
+                                    </p>
+                                )}
                             </div>
                         ))
                     ) : (

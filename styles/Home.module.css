@@ -191,7 +191,7 @@
 }
 
 .footer h2 {
-    font-size: 30pt;
+    font-size: 15pt;
 }
 
 .headerIndex {
@@ -238,3 +238,48 @@
 .conversaItem{
     position: relative;
 }
+
+.error-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Fundo com 50% de transparência */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .error-popup {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+  }
+  
+  .error-popup h2 {
+    margin-top: 0;
+    color: red;
+  }
+  
+  .error-popup p {
+    margin: 15px 0;
+  }
+  
+  .error-popup button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .error-popup button:hover {
+    background-color: #0056b3;
+  }

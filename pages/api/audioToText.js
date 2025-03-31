@@ -13,7 +13,7 @@ export const config = {
   },
 };
 
-async function saveMessages(email, msgUser, msgBot, audioPath) {
+async function saveMessages(email, msgUser, msgBot, contexto, audioPath) {
   const connection = await mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -21,15 +21,15 @@ async function saveMessages(email, msgUser, msgBot, audioPath) {
     database: 'gemini',
   });
 
-  
+
   try {
     // Formatar o texto antes de salvar
     const formattedMsgUser = formatText(msgUser);
     const formattedMsgBot = formatText(msgBot);
 
     const [result] = await connection.execute(
-      'INSERT INTO AudioToText (email, msguser, msgbot, linkArquivo) VALUES (?, ?, ?, ?)',
-      [email, formattedMsgUser, formattedMsgBot, audioPath]
+      'INSERT INTO AudioToText (email, msguser, msgbot, contexto, linkArquivo) VALUES (?, ?, ?, ?, ?)',
+      [email, formattedMsgUser, formattedMsgBot, contexto, audioPath]
     );
 
     if (result.affectedRows > 0) {
@@ -73,6 +73,81 @@ const parseForm = (req) => {
   });
 };
 
+async function getAudioDetails(fileUri, mimeType) {
+  try {
+
+    // Inicializa o cliente da API do Gemini
+    const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+
+    // Configura o modelo do Gemini
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+    });
+
+    // Envia a imagem e o prompt para a API do Gemini
+    const result = await model.generateContent([
+      {
+        fileData: {
+          mimeType: mimeType,
+          fileUri: fileUri,
+        },
+      },
+      { text: "Você deve Detalhar o conteúdo deste áudio, transcrevendo para texto. Responda formatado pronto para copiar e colar, sem acrescentar mais textos, apenas informações do áudio em detalhes." },
+    ]);
+
+    // Processa a resposta da API
+    const responseText = result.response.text();
+    return responseText;
+  } catch (error) {
+    console.error('Erro ao obter detalhes da imagem:', error);
+    throw error;
+  }
+}
+
+async function getFormattedConversations(email) {
+  const connection = await mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'gemini'
+  });
+
+  try {
+    const [rows] = await connection.execute(
+      'SELECT msguser, contexto FROM `AudioToText` WHERE email = ? ORDER BY id DESC LIMIT 2000',
+      [email]
+    );
+
+    const formattedConversations = rows.map(row => {
+      return `USUÁRIO: ${row.msguser}\n. *VOCÊ*: ${row.contexto}.`;
+    }).join('\n');
+
+    return formattedConversations;
+
+  } catch (error) {
+    console.error('Erro ao buscar conversas:', error);
+    throw error;
+  } finally {
+    await connection.end();
+  }
+}
+
+function processText(inputText) {
+  // Remove quebras de linha e espaços em branco extras
+  let cleanedText = inputText.replace(/\s+/g, ' ').trim();
+
+  // Expressão regular para identificar links de áudio
+  const audioRegex = /(C:\\xampp\\htdocs\\funcoes_api_gemini_upload\\public\\audios(?:Enviados)?\\[^\s]+|\/public\/audios(?:Enviados)?\/[^\s]+)/g;
+
+  // Remove os links de áudio do texto
+  cleanedText = cleanedText.replace(audioRegex, '').trim();
+
+  // Remove espaços extras gerados após a remoção dos links
+  cleanedText = cleanedText.replace(/\s+/g, ' ');
+
+  return cleanedText;
+}
+
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
@@ -111,8 +186,16 @@ export default async function handler(req, res) {
 
       const fileUri = uploadResponse.file.uri;
 
+      const audioFileDetails = await getAudioDetails(fileUri, "audio/mp3");
+
+      let hystoric = await getFormattedConversations(emailUser);
+      hystoric = await processText(hystoric);
+      console.log('Histórico:', hystoric);
+
+      //return res.status(200).json({ response: hystoric });
+      //return res.status(200).json({ response: audioFileDetails });
       const genAI = new GoogleGenerativeAI(process.env.API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
 
       const result = await model.generateContent([
         {
@@ -121,14 +204,14 @@ export default async function handler(req, res) {
             fileUri: fileUri,
           },
         },
-        { text: prompt },
+        { text: `Histórico de conversas anteriores: ${hystoric}, use como lembranças de conversas anteriores.\n Esta é a última mensagem do Usuário: ${prompt}` },
       ]);
 
       const respApi = result.response.text();
 
       const formatedText = await formatText(respApi);
 
-      await saveMessages(emailUser, prompt, formatedText, pastaAudio);
+      await saveMessages(emailUser, prompt, formatedText, audioFileDetails, pastaAudio);
 
       return res.status(200).json({ response: formatedText });
     } catch (error) {

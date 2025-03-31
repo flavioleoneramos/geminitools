@@ -25,16 +25,14 @@ export default function Home() {
             <li>
               <Link href="/imageToText/">Image To Text</Link>
             </li>
-            
+
             <li>
               <Link href="/imageToImage/">Image To Image</Link>
             </li>
-            {/** 
-             * 
+
             <li>
               <Link href="/textToAudio/">Text To Audio</Link>
             </li>
-            */}
             <li>
               <Link href="/audioToText/">Audio To Text</Link>
             </li>

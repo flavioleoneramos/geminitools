@@ -16,38 +16,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY, // Chave da API no arquivo .env
 });
 
-
-async function salvarArquivo64(base64Image) {
-  try {
-    // Remove o prefixo "data:image/jpeg;base64," se estiver presente
-    const base64Data = base64Image.replace(/^data:image\/jpeg;base64,/, "");
-
-    // Converte a imagem base64 para um buffer
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    // Gera um nome único para o arquivo
-    const uniqueName = `${uuidv4()}.jpg`;
-
-    // Define o caminho para salvar a imagem
-    const uploadPath = path.join(process.cwd(), '/public/imagens', uniqueName);
-
-    // Cria a pasta se não existir
-    if (!fs.existsSync(path.dirname(uploadPath))) {
-      fs.mkdirSync(path.dirname(uploadPath), { recursive: true });
-    }
-
-    // Salva a imagem no sistema de arquivos
-    fs.writeFileSync(uploadPath, buffer);
-
-    // Retorna o caminho relativo da imagem
-    const relativePath = `/imagens/${uniqueName}`;
-    return relativePath;
-  } catch (error) {
-    throw new Error('Erro ao salvar o arquivo');
-  }
-}
-
-async function salvarArquivo(imageUrl) {
+/*async function salvarArquivo(imageUrl) {
   try {
     // Faz o download da imagem
     const response = await fetch(imageUrl);
@@ -76,9 +45,9 @@ async function salvarArquivo(imageUrl) {
   } catch (error) {
     throw new Error('Erro ao salvar o arquivo');
   }
-}
+}*/
 
-async function saveMessages(email, msgUser, msgBot) {
+async function saveMessages(email, msgUser, msgBot, imageFileDetails) {
   const connection = await mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -88,8 +57,8 @@ async function saveMessages(email, msgUser, msgBot) {
 
   try {
     const [result] = await connection.execute(
-      'INSERT INTO TextToImage (email, msguser, msgbot) VALUES (?, ?, ?)',
-      [email, msgUser, msgBot]
+      'INSERT INTO TextToImage (email, msguser, msgbot, contexto) VALUES (?, ?, ?, ?)',
+      [email, msgUser, msgBot, imageFileDetails]
     );
 
     if (result.affectedRows > 0) {
@@ -107,6 +76,37 @@ async function saveMessages(email, msgUser, msgBot) {
   }
 }
 
+async function getImageDetails(fileUri, mimeType) {
+  try {
+
+    // Inicializa o cliente da API do Gemini
+    const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+
+    // Configura o modelo do Gemini
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+    });
+
+    // Envia a imagem e o prompt para a API do Gemini
+    const result = await model.generateContent([
+      {
+        fileData: {
+          mimeType: mimeType,
+          fileUri: fileUri,
+        },
+      },
+      { text: "Você deve Detalhar o conteúdo desta imagem para ser replicada em outra imagem. Responda formatado pronto para copiar e colar, sem acrescentar mais textos, apenas informações da imagem em detalhe." },
+    ]);
+
+    // Processa a resposta da API
+    const responseText = result.response.text();
+    return responseText;
+  } catch (error) {
+    console.error('Erro ao obter detalhes da imagem:', error);
+    throw error;
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     const { textoSalvo, model } = req.body;
@@ -116,122 +116,6 @@ export default async function handler(req, res) {
     try {
 
       switch (model) {
-        case 'dall-e-3':
-
-          const response = await openai.images.generate({
-            model: "dall-e-3",
-            prompt: textoSalvo,
-            n: 1,
-            size: "1024x1024",
-          });
-
-          const resp = response.data[0].url;
-
-          const filePath = await salvarArquivo(resp);
-
-          //console.log(response);
-          await saveMessages(emailUser, textoSalvo, filePath);
-          res.status(200).json({ imageUrl: filePath });
-          break;
-
-        case 'FLUX.1-dev':
-          console.log("FLUX.1-dev");
-          // Define a URL da API Hugging Face e o token de autorização
-          const apiUrl = 'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev';
-          const headers = {
-            'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-            'Content-Type': 'application/json',
-          };
-
-          // Faz a requisição para a API Hugging Face
-          const responseFlux = await fetch(apiUrl, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify({ inputs: text }),
-          });
-
-          if (!responseFlux.ok) {
-            throw new Error('Erro ao gerar a imagem com FLUX.1-dev');
-          }
-
-          const bufferFlux = await responseFlux.buffer();
-
-          // Converte o buffer da imagem para base64
-          const base64Image = bufferFlux.toString('base64');
-          const imageDataUrl = `data:image/jpeg;base64,${base64Image}`;
-          const imgPath = await salvarArquivo64(imageDataUrl);
-          console.log(imgPath);
-          await saveMessages(emailUser, text, imgPath);
-
-          // Retorna a imagem em base64 como resposta
-          res.status(200).json({ imageUrl: imgPath });
-          break;
-
-        case 'stable-diffusion-xl-base-1.0':
-          console.log("stable-diffusion-xl-base-1.0");
-          // Define a URL da API Hugging Face e o token de autorização
-          const apiUrlStable = 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0';
-          const headersStable = {
-            'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-            'Content-Type': 'application/json',
-          };
-
-          // Faz a requisição para a API Hugging Face
-          const responseStable = await fetch(apiUrlStable, {
-            method: 'POST',
-            headers: headersStable,
-            body: JSON.stringify({ inputs: text }),
-          });
-
-          if (!responseStable.ok) {
-            throw new Error('Erro ao gerar a imagem com stable-diffusion-xl-base-1.0');
-          }
-
-          const bufferStable = await responseStable.buffer();
-
-          // Converte o buffer da imagem para base64
-          const base64ImageStable = bufferStable.toString('base64');
-          const imageDataUrlStable = `data:image/jpeg;base64,${base64ImageStable}`;
-          const imgPath1 = await salvarArquivo64(imageDataUrlStable);
-          console.log(imgPath1);
-          await saveMessages(emailUser, text, imgPath1);
-
-          // Retorna a imagem em base64 como resposta
-          res.status(200).json({ imageUrl: imgPath1 });
-          break;
-
-        case 'stable-diffusion-v1-5':
-          console.log("stable-diffusion-v1-5");
-
-          // Define a URL da API Hugging Face e o token de autorização
-          const apiUrlStableD = 'https://api-inference.huggingface.co/models/stable-diffusion-v1-5/stable-diffusion-v1-5';
-          const headersStableD = {
-            'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-            'Content-Type': 'application/json',
-          };
-
-          // Faz a requisição para a API Hugging Face
-          const responseStableD = await fetch(apiUrlStableD, {
-            method: 'POST',
-            headers: headersStableD,
-            body: JSON.stringify({ inputs: text }),
-          });
-
-          if (!responseStableD.ok) {
-            throw new Error('Erro ao gerar a imagem com stable-diffusion-v1-5');
-          }
-
-          const bufferStableD = await responseStableD.buffer();
-
-          // Converte o buffer da imagem para base64
-          const base64ImageStableD = bufferStableD.toString('base64');
-          const imageDataUrlStableD = `data:image/jpeg;base64,${base64ImageStableD}`;
-          const imgpath2 = await salvarArquivo64(imageDataUrlStableD);
-          console.log(imgpath2);
-          await saveMessages(emailUser, text, imgpath2);
-          // Retorna a imagem em base64 como resposta
-          res.status(200).json({ imageUrl: imgpath2 });
-          break;
         case 'gemini-2.0-flash-exp-image-generation':
           const contents = text;
 
@@ -244,14 +128,20 @@ export default async function handler(req, res) {
           });
 
           try {
+            
             const response = await model.generateContent(contents);
             for (const part of response.response.candidates[0].content.parts) {
               // Based on the part type, either show the text or save the image
               if (part.text) {
-                console.log(part.text);
-                return res.status(200).json({ textUrl: part.text });
+
+                const text = part.text;
+                console.log(text);
+                return res.status(200).json({ textUrl: text });
+
               } else if (part.inlineData) {
+
                 const imageData = part.inlineData.data;
+
                 const buffer = Buffer.from(imageData, 'base64');
 
                 // Gera um nome único para o arquivo
@@ -268,38 +158,28 @@ export default async function handler(req, res) {
                 // Salva a imagem no sistema de arquivos
                 fs.writeFileSync(uploadPath, buffer);
 
+                const fileManager = new GoogleAIFileManager(process.env.API_KEY);
+
+                // Upload do arquivo para o Google AI
+                const uploadResponse = await fileManager.uploadFile(uploadPath, {
+                  mimeType: "image/jpeg", // Certifique-se de usar o MIME type correto
+                  displayName: 'Imagem do usuário',
+                });
+
+                const fileUri = uploadResponse.file.uri;
+
+                const imageFileDetails = await getImageDetails(fileUri, "image/jpeg"); // Remove o arquivo temporário após o upload
+                console.log('Detalhes da imagem:', imageFileDetails);
                 // Retorna o caminho relativo da imagem
                 const relativePath = `/imagens/${uniqueName}`;
                 console.log('Imagem salva em:', relativePath);
-                await saveMessages(emailUser, text, relativePath);
+                await saveMessages(emailUser, text, relativePath, imageFileDetails);
                 return res.status(200).json({ imageUrl: relativePath });
-                
-              } /**else if (part.inlineData && part.text) {
-                const imageData = part.inlineData.data;
-                const textUrl = part.text;
-                const buffer = Buffer.from(imageData, 'base64');
 
-                // Gera um nome único para o arquivo
-                const uniqueName = `${uuidv4()}.jpg`;
-
-                // Define o caminho para salvar a imagem
-                const uploadPath = path.join(process.cwd(), '/public/imagens', uniqueName);
-
-                // Cria a pasta se não existir
-                if (!fs.existsSync(path.dirname(uploadPath))) {
-                  fs.mkdirSync(path.dirname(uploadPath), { recursive: true });
-                }
-
-                // Salva a imagem no sistema de arquivos
-                fs.writeFileSync(uploadPath, buffer);
-
-                // Retorna o caminho relativo da imagem
-                const relativePath = `/imagens/${uniqueName}`;
-                console.log('Imagem com texto salva em:', relativePath);
-                await saveMessages(emailUser, text, relativePath);
-                res.status(200).json({ imageUrl: relativePath, textUrl: textUrl });
-                return;
-              } */
+              } else {
+                console.error("Erro ao gerar conteúdo:", response);
+                res.status(500).json({ error: 'Falha ao gerar a imagem' });
+              }
             }
           } catch (error) {
             console.error("Erro ao gerar conteúdo:", error);

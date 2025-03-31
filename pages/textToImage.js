@@ -69,7 +69,6 @@ function TextToImage() {
         //setImageUrl(data.imageUrl); // Atualiza o estado com a URL da imagem
         console.log(data.imageUrl);
         if (data.textUrl) {
-            console.log(data.textUrl);
             alert(data.textUrl);
         }
         await addMessageToConversas(data.imageUrl, 'bot');
@@ -123,7 +122,7 @@ function TextToImage() {
                     conversas.map((conversa, index) => (
                         <div key={index} className={styles.conversaItem}>
                             {conversa.msguser && <p className={styles.msguser}>{conversa.msguser}</p>}
-                            {conversa.msgbot && <p className={styles.msgbot}><img src={conversa.msgbot} width={400} height={400} alt="Imagem gerada a partir do texto" /></p>} {/*<Image src={conversa.msgbot} width={400} height={400} alt="Imagem gerada a partir do texto" />*/}
+                            {conversa.msgbot && <p className={styles.msgbot}>{<img src={conversa.msgbot} width={400} height={400} alt="Imagem gerada a partir do texto" />}</p>} {/*<Image src={conversa.msgbot} width={400} height={400} alt="Imagem gerada a partir do texto" />*/}
                         </div>
                     ))
                 ) : (
@@ -144,10 +143,7 @@ function TextToImage() {
                     placeholder="Digite seu texto aqui"
                 />
                 <select value={model} onChange={(e) => setModel(e.target.value)}>
-                    {/**<option value="dall-e-3">DALL-E 3</option> */}
-                    <option value="FLUX.1-dev">FLUX.1-dev</option>  {/* Ajuste se necessário */}
-                    <option value="stable-diffusion-v1-5">Stable Diffusion v1-5</option>  {/* Ajuste se necessário */}
-                    <option value="stable-diffusion-xl-base-1.0">Stable Diffusion xl-base-1.0</option>  {/* Ajuste se necessário */}
+                    <option value="dall-e-3">DALL-E 3</option>
                     <option value="gemini-2.0-flash-exp-image-generation">gemini-2.0-flash-exp-image-generation</option>  {/* Ajuste se necesario */}
                     {/*<option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>   /* Ajuste se necessário */}
 
