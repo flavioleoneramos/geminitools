@@ -36,11 +36,6 @@ export default function Home() {
             <li>
               <Link href="/audioToText/">Audio To Text</Link>
             </li>
-            {/**
-             * <li>
-                  <Link href="/textToVideo/">Text To Video</Link>
-               </li>
-             */}
             <li>
               <Link href="/videoToText/">Video To Text</Link>
             </li>
@@ -49,18 +44,6 @@ export default function Home() {
             </li>
           </ul>
         </header>
-        {/**<section className={styles.sectionCorpo}>
-          <div className={styles.modelos}>
-            <Image src="/gemini.webp" alt="Gemini Logo" width={200} height={200} />
-          </div>
-          <div className={styles.modelos}>
-            <Image src="/openai.png" alt="Openai Logo" width={200} height={200} />
-          </div>
-          <div className={styles.modelos}>
-            <Image src="/hugging.jpg" alt="Huggingface Logo" width={200} height={200} />
-          </div>
-
-        </section> */}
       </main>
 
       <footer className={styles.footer}>
