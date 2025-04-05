@@ -10,7 +10,7 @@ import mysql from 'mysql2/promise';
 import { v4 as uuidv4 } from 'uuid';
 
 const emailUser = process.env.EMAILUSER;
-//const emailUser = "flavioleone8383@gmail.com";
+
 const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY, // Chave da API no arquivo .env
@@ -95,7 +95,7 @@ async function getImageDetails(fileUri, mimeType) {
           fileUri: fileUri,
         },
       },
-      { text: "Você deve Detalhar o conteúdo desta imagem para ser replicada em outra imagem. Responda formatado pronto para copiar e colar, sem acrescentar mais textos, apenas informações da imagem em detalhe." },
+      { text: "Você deve Detalhar o conteúdo desta imagem para ser replicada em outra imagem. Responda em Português do Brasil, formatado pronto para copiar e colar, sem acrescentar mais textos, apenas informações da imagem em detalhe." },
     ]);
 
     // Processa a resposta da API
@@ -104,6 +104,34 @@ async function getImageDetails(fileUri, mimeType) {
   } catch (error) {
     console.error('Erro ao obter detalhes da imagem:', error);
     throw error;
+  }
+}
+
+async function getFormattedConversations(email) {
+  const connection = await mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'gemini'
+  });
+
+  try {
+    const [rows] = await connection.execute(
+      'SELECT msguser, contexto FROM `TextToImage` WHERE email = ? ORDER BY id DESC LIMIT 2',
+      [email]
+    );
+
+    const formattedConversations = rows.map(row => {
+      return `User: ${row.msguser}\n. Model: ${row.msgbot}.`;
+    }).join('\n');
+
+    return formattedConversations;
+
+  } catch (error) {
+    console.error('Erro ao buscar conversas:', error);
+    throw error;
+  } finally {
+    await connection.end();
   }
 }
 
@@ -118,18 +146,21 @@ export default async function handler(req, res) {
       switch (model) {
         case 'gemini-2.0-flash-exp-image-generation':
           const contents = text;
+          let hystoric = await getFormattedConversations(emailUser);
+          hystoric = hystoric.replace(/<br>/g, '').replace(/\s+/g, ' ').trim();
 
           // Set responseModalities to include "Image" so the model can generate an image
           const model = genAI.getGenerativeModel({
             model: "gemini-2.0-flash-exp-image-generation",
+            systemInstruction: `Você é um assistente pessoal baseado em inteligência artificial. Você deve responder às perguntas do usuário em português do Brasil de forma clara e concisa. Você pode usar o histórico de conversas que estão dentro da tag <HISTORICO></HISTORICO> para melhorar suas respostas. Rsponda a pergunta contida dentro da tag <PERGUNTA></PERGUNTA>.`,
             generationConfig: {
               responseModalities: ['Text', 'Image']
             },
           });
 
           try {
-            
-            const response = await model.generateContent(contents);
+
+            const response = await model.generateContent(`<HISTORICO>${hystoric}</HISTORICO><PERGUNTA>${contents}</PERGUNTA>`);
             for (const part of response.response.candidates[0].content.parts) {
               // Based on the part type, either show the text or save the image
               if (part.text) {
@@ -165,11 +196,12 @@ export default async function handler(req, res) {
                   mimeType: "image/jpeg", // Certifique-se de usar o MIME type correto
                   displayName: 'Imagem do usuário',
                 });
+                
 
                 const fileUri = uploadResponse.file.uri;
 
                 const imageFileDetails = await getImageDetails(fileUri, "image/jpeg"); // Remove o arquivo temporário após o upload
-                console.log('Detalhes da imagem:', imageFileDetails);
+                //console.log('Detalhes da imagem:', imageFileDetails);
                 // Retorna o caminho relativo da imagem
                 const relativePath = `/imagens/${uniqueName}`;
                 console.log('Imagem salva em:', relativePath);

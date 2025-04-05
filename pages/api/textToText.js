@@ -43,7 +43,7 @@ async function getFormattedConversations(email) {
 
   try {
     const [rows] = await connection.execute(
-      'SELECT msguser, msgbot FROM `TextToText` WHERE email = ? ORDER BY id DESC LIMIT 2000',
+      'SELECT msguser, msgbot FROM `TextToText` WHERE email = ? ORDER BY id DESC LIMIT 2',
       [email]
     );
 
@@ -60,6 +60,7 @@ async function getFormattedConversations(email) {
     await connection.end();
   }
 }
+
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {

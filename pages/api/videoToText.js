@@ -23,7 +23,8 @@ function formatText(text) {
   return formattedText;
 }
 
-async function saveMessages(email, msgUser, msgBot, videoPath) {
+
+async function saveMessages(email, msgUser, msgBot, contexto, videoPath) {
   const connection = await mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -36,8 +37,8 @@ async function saveMessages(email, msgUser, msgBot, videoPath) {
     const formattedMsgBot = formatText(msgBot);
 
     const [result] = await connection.execute(
-      'INSERT INTO VideoToText (email, msguser, msgbot, linkArquivo) VALUES (?, ?, ?, ?)',
-      [email, formattedMsgUser, formattedMsgBot, videoPath]
+      'INSERT INTO VideoToText (email, msguser, msgbot, contexto, linkArquivo) VALUES (?, ?, ?, ?, ?)',
+      [email, formattedMsgUser, formattedMsgBot, contexto, videoPath]
     );
 
     if (result.affectedRows > 0) {
@@ -83,6 +84,34 @@ async function waitForFileToBeActive(fileId, fileManager, maxAttempts = 10, dela
   return file; // Retornar o arquivo quando estiver ativo
 }
 
+async function getFormattedConversations(email) {
+  const connection = await mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'gemini'
+  });
+
+  try {
+    const [rows] = await connection.execute(
+      'SELECT msguser, contexto FROM `VideoToText` WHERE email = ? ORDER BY id DESC LIMIT 2',
+      [email]
+    );
+
+    const formattedConversations = rows.map(row => {
+      return `User: ${row.msguser}\n. Model: ${row.msgbot}.`;
+    }).join('\n');
+
+    return formattedConversations;
+
+  } catch (error) {
+    console.error('Erro ao buscar conversas:', error);
+    throw error;
+  } finally {
+    await connection.end();
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     const form = formidable({ uploadDir: os.tmpdir(), keepExtensions: true });
@@ -108,12 +137,15 @@ export default async function handler(req, res) {
 
           fs.renameSync(videoFile.filepath, videoPath);
 
-          console.log('Vídeo salvo em public/videos:', videoPath);
+          //console.log('Vídeo salvo em public/videos:', videoPath);
+
+          let hystoric = await getFormattedConversations(emailUser);
+          hystoric = hystoric.replace(/<br>/g, '').replace(/\s+/g, ' ').trim();
 
           // Converter o caminho para usar barras "/" e pegar apenas a parte relativa a "/public/"
           const relativePath = videoPath.replace(/\\/g, '/').split('/public/')[1];
           const finalPath = `/${relativePath}`;
-          console.log('Caminho relativo do vídeo:', finalPath);
+          //console.log('Caminho relativo do vídeo:', finalPath);
 
           const fileManager = new GoogleAIFileManager(process.env.API_KEY);
 
@@ -123,7 +155,7 @@ export default async function handler(req, res) {
           });
 
           const processedFile = await waitForFileToBeActive(uploadResponse.file.name, fileManager);
-          
+
           const genAI = new GoogleGenerativeAI(process.env.API_KEY);
           const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
 
@@ -138,7 +170,10 @@ export default async function handler(req, res) {
           ]);
 
           const resp = result.response.text();
-          await saveMessages(emailUser, prompt, resp, finalPath); // Salvar o caminho relativo no banco de dados
+
+          const detalhesVideo = await getDetalhesVideo(processedFile.uri, processedFile.mimeType); // pegar detalhes do vídeo
+
+          await saveMessages(emailUser, prompt, resp, detalhesVideo, finalPath); // Salvar o caminho relativo no banco de dados
 
           return res.status(200).json({ response: resp });
         } else {

@@ -61,32 +61,6 @@ export const config = {
   },
 };
 
-// Função para parse do formulário utilizando Promise
-const parseForm = (req) => {
-  return new Promise((resolve, reject) => {
-    const form = formidable({ multiples: false, keepExtensions: true }); // Mantém a extensão do arquivo
-    form.parse(req, (err, fields, files) => {
-      if (err) reject(err);
-      resolve({ fields, files });
-    });
-  });
-};
-
-// Função auxiliar para criar uma pasta temporária
-const createTempDir = () => {
-  const tempDir = path.join(process.cwd(), 'temp');
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir);
-  }
-  return tempDir;
-};
-
-// Função auxiliar para remover o arquivo temporário após o upload
-const deleteTempFile = (filePath) => {
-  fs.unlink(filePath, (err) => {
-    if (err) console.error('Erro ao deletar arquivo temporário:', err);
-  });
-};
 
 async function getImageDetails(fileUri, mimeType) {
   try {
@@ -107,7 +81,7 @@ async function getImageDetails(fileUri, mimeType) {
           fileUri: fileUri,
         },
       },
-      { text: "Você deve Detalhar o conteúdo desta imagem para ser replicada em outra imagem. Responda formatado pronto para copiar e colar, sem acrescentar mais textos, apenas informações da imagem em detalhe." },
+      { text: "Você deve Detalhar o conteúdo desta imagem para ser replicada em outra imagem. Responda formatado pronto para copiar e colar em Português do Brasil, sem acrescentar mais textos, apenas informações da imagem em detalhe." },
     ]);
 
     // Processa a resposta da API
@@ -129,12 +103,12 @@ async function getFormattedConversations(email) {
 
   try {
     const [rows] = await connection.execute(
-      'SELECT msguser, contexto FROM `ImageToText` WHERE email = ? ORDER BY id DESC LIMIT 2000',
+      'SELECT msguser, contexto FROM `ImageToText` WHERE email = ? ORDER BY id DESC LIMIT 2',
       [email]
     );
 
     const formattedConversations = rows.map(row => {
-      return `USUÁRIO: ${row.msguser}\n. *VOCÊ*: ${row.contexto}.`;
+      return `User: ${row.msguser}\n. Model: ${row.contexto}.`;
     }).join('\n');
 
     return formattedConversations;
@@ -216,7 +190,7 @@ export default async function handler(req, res) {
         //console.log('Histórico:', hystoric);
         //return res.status(200).json({ message: hystoric });
 
-        const genAI = await new GoogleGenerativeAI(process.env.API_KEY);
+        const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
         const model = genAI.getGenerativeModel({
           model: 'gemini-1.5-pro',

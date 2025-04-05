@@ -80,12 +80,12 @@ async function getFormattedConversations(email) {
 
   try {
     const [rows] = await connection.execute(
-      'SELECT msguser, contexto FROM `PDFToText` WHERE email = ? ORDER BY id DESC LIMIT 2000',
+      'SELECT msguser, contexto FROM `PDFToText` WHERE email = ? ORDER BY id DESC LIMIT 2',
       [email]
     );
 
     const formattedConversations = rows.map(row => {
-      return `USUÁRIO: ${row.msguser}\n. *VOCÊ*: ${row.contexto}.`;
+      return `User: ${row.msguser}\n. Model: ${row.contexto}.`;
     }).join('\n');
 
     return formattedConversations;

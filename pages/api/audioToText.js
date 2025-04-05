@@ -33,7 +33,7 @@ async function saveMessages(email, msgUser, msgBot, contexto, audioPath) {
     );
 
     if (result.affectedRows > 0) {
-      console.log('Mensagens inseridas com sucesso.');
+      //console.log('Mensagens inseridas com sucesso.');
       return { message: 'Mensagens inseridas com sucesso.' };
     } else {
       console.log('Falha ao inserir mensagens.');
@@ -92,7 +92,7 @@ async function getAudioDetails(fileUri, mimeType) {
           fileUri: fileUri,
         },
       },
-      { text: "Você deve Detalhar o conteúdo deste áudio, transcrevendo para texto. Responda formatado pronto para copiar e colar, sem acrescentar mais textos, apenas informações do áudio em detalhes." },
+      { text: "Você deve Detalhar o conteúdo deste áudio, transcrevendo para texto em Português do Brasil. Responda formatado pronto para copiar e colar, sem acrescentar mais textos, apenas informações do áudio em detalhes." },
     ]);
 
     // Processa a resposta da API
@@ -114,12 +114,12 @@ async function getFormattedConversations(email) {
 
   try {
     const [rows] = await connection.execute(
-      'SELECT msguser, contexto FROM `AudioToText` WHERE email = ? ORDER BY id DESC LIMIT 2000',
+      'SELECT msguser, contexto FROM `AudioToText` WHERE email = ? ORDER BY id DESC LIMIT 2',
       [email]
     );
 
     const formattedConversations = rows.map(row => {
-      return `USUÁRIO: ${row.msguser}\n. *VOCÊ*: ${row.contexto}.`;
+      return `User: ${row.msguser}\n. Model: ${row.contexto}.`;
     }).join('\n');
 
     return formattedConversations;
@@ -174,7 +174,7 @@ export default async function handler(req, res) {
       // Mover o arquivo para a pasta public/audios
       fs.renameSync(audioFile.filepath, audioSalvo);
 
-      console.log('Áudio salvo em public/audios:', audioSalvo);
+      //console.log('Áudio salvo em public/audios:', audioSalvo);
 
       const fileManager = new GoogleAIFileManager(process.env.API_KEY);
 
@@ -190,12 +190,19 @@ export default async function handler(req, res) {
 
       let hystoric = await getFormattedConversations(emailUser);
       hystoric = await processText(hystoric);
-      console.log('Histórico:', hystoric);
+      //console.log('Histórico:', hystoric);
 
       //return res.status(200).json({ response: hystoric });
       //return res.status(200).json({ response: audioFileDetails });
       const genAI = new GoogleGenerativeAI(process.env.API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-1.5-pro',
+        systemInstruction: `Você é um assistente pessoal baseado em inteligência artificial. Você deve responder às perguntas do usuário de forma clara e concisa. Você pode usar o histórico de conversas que estão dentro da tag <HISTORICO></HISTORICO> para melhorar suas respostas. Rsponda a pergunta contida dentro da tag <PERGUNTA></PERGUNTA>.`,
+        generationConfig: {
+          maxOutputTokens: 8000,
+          temperature: 0.2,
+        }
+      });
 
       const result = await model.generateContent([
         {
@@ -204,7 +211,7 @@ export default async function handler(req, res) {
             fileUri: fileUri,
           },
         },
-        { text: `Histórico de conversas anteriores: ${hystoric}, use como lembranças de conversas anteriores.\n Esta é a última mensagem do Usuário: ${prompt}` },
+        { text: `<HISTORICO>${hystoric}</HISTORICO><PERGUNTA>${texto}</PERGUNTA>` },
       ]);
 
       const respApi = result.response.text();
