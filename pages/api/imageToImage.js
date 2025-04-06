@@ -3,6 +3,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import formidable from 'formidable';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleAIFileManager } from '@google/generative-ai/server';
 import mysql from 'mysql2/promise';
 
 export const config = {
@@ -45,21 +46,6 @@ async function saveMessages(email, msgUser, msgBot, imageUser) {
   }
 }
 
-function formatText(text) {
-  if (!text) return '';
-
-  // Adiciona quebras de linha
-  let formattedText = text.replace(/\n/g, '<br>');
-
-  // Transforma texto entre ** em negrito
-  formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-
-  // Transforma texto entre * em itálico
-  formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-  return formattedText;
-}
-
 async function salvarArquivo(buffer) {
   try {
     // Gera um nome único para o arquivo
@@ -86,6 +72,7 @@ async function salvarArquivo(buffer) {
 
 async function generateImage(text, imagePath) {
   try {
+
     // Lê o arquivo da imagem e converte para Base64
     const imageData = fs.readFileSync(imagePath);
     const base64Image = imageData.toString('base64');
@@ -110,7 +97,7 @@ async function generateImage(text, imagePath) {
         responseModalities: ['Text', 'Image'],
       },
     });
-    
+
 
     // Gera o conteúdo usando a API do Gemini
     const response = await model.generateContent(contents);
@@ -161,8 +148,6 @@ export default async function handler(req, res) {
 
         // Salva a imagem enviada pelo usuário no servidor
         const userImagePath = await salvarArquivo(imageBuffer);
-
-        console.log('Imagem do usuário salva em:', userImagePath);
 
         // Gera a imagem editada usando a API do Gemini
         const generatedImagePath = await generateImage(text, imageFile.filepath);

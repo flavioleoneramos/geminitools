@@ -6,7 +6,7 @@ import formidable from 'formidable';
 import mysql from 'mysql2/promise';
 
 const emailUser = process.env.EMAILUSER;
-async function saveMessages(email, msgUser, msgBot, contexto, pdfUser) {
+async function saveMessages(email, msgUser, msgBot, pdfUser) {
   const connection = await mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -20,8 +20,8 @@ async function saveMessages(email, msgUser, msgBot, contexto, pdfUser) {
     const formattedMsgBot = formatText(msgBot);
 
     const [result] = await connection.execute(
-      'INSERT INTO PDFToText (email, msguser, msgbot, contexto, linkArquivo) VALUES (?, ?, ?, ?, ?)',
-      [email, formattedMsgUser, formattedMsgBot, contexto, pdfUser]
+      'INSERT INTO PDFToText (email, msguser, msgbot, linkArquivo) VALUES (?, ?, ?, ?)',
+      [email, formattedMsgUser, formattedMsgBot, pdfUser]
     );
 
     if (result.affectedRows > 0) {
@@ -70,80 +70,6 @@ const parseForm = (req) => {
   });
 };
 
-async function getFormattedConversations(email) {
-  const connection = await mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'gemini'
-  });
-
-  try {
-    const [rows] = await connection.execute(
-      'SELECT msguser, contexto FROM `PDFToText` WHERE email = ? ORDER BY id DESC LIMIT 2',
-      [email]
-    );
-
-    const formattedConversations = rows.map(row => {
-      return `User: ${row.msguser}\n. Model: ${row.contexto}.`;
-    }).join('\n');
-
-    return formattedConversations;
-
-  } catch (error) {
-    console.error('Erro ao buscar conversas:', error);
-    throw error;
-  } finally {
-    await connection.end();
-  }
-}
-
-async function processText(inputText) {
-  // Remove quebras de linha e espaços em branco extras
-  let cleanedText = inputText.replace(/\s+/g, ' ').trim();
-
-  // Encontra o índice do primeiro endereço de imagem
-  const imageRegex = /(https?:\/\/|\/photos\/|C:\/xampp\/htdocs\/funcoes_api_gemini_upload\/public\/photos\/)/;
-  const match = cleanedText.match(imageRegex);
-
-  if (match) {
-    // Mantém apenas o texto antes do endereço da imagem
-    cleanedText = cleanedText.substring(0, match.index).trim();
-  }
-
-  return cleanedText;
-}
-
-async function getPdfDetails(fileUri, mimeType) {
-  try {
-
-    // Inicializa o cliente da API do Gemini
-    const genAI = new GoogleGenerativeAI(process.env.API_KEY);
-
-    // Configura o modelo do Gemini
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-pro',
-    });
-
-    // Envia a imagem e o prompt para a API do Gemini
-    const result = await model.generateContent([
-      {
-        fileData: {
-          mimeType: mimeType,
-          fileUri: fileUri,
-        },
-      },
-      { text: "Você deve Detalhar o conteúdo deste áudio de forma detalhada. Responda formatado pronto para copiar e colar, sem acrescentar mais textos, apenas informações do pdf em detalhe." },
-    ]);
-
-    // Processa a resposta da API
-    const responseText = result.response.text();
-    return responseText;
-  } catch (error) {
-    console.error('Erro ao obter detalhes da imagem:', error);
-    throw error;
-  }
-}
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
@@ -182,19 +108,10 @@ export default async function handler(req, res) {
 
       const fileUri = uploadResponse.file.uri;
 
-      const pdfFileDetails = await getPdfDetails(fileUri, pdfFilePath.mimetype); // Remove o arquivo temporário após o upload
-      console.log('detalhes:', pdfFileDetails);
-      //return res.status(200).json({ message: pdfFileDetails });
-
-      let hystoric = await getFormattedConversations(emailUser);
-      //hystoric = await processText(hystoric);
-      //console.log('Histórico:', hystoric);
-      // res.status(200).json({ message: hystoric });
       const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
       const model = genAI.getGenerativeModel({
         model: 'gemini-1.5-pro',
-        systemInstruction: `Você é um assistente pessoal baseado em inteligência artificial. Você deve responder às perguntas do usuário de forma clara e concisa. Você pode usar o histórico de conversas que estão dentro da tag <HISTORICO></HISTORICO> para melhorar suas respostas. Rsponda a pergunta contida dentro da tag <PERGUNTA></PERGUNTA>.`,
         generationConfig: {
           maxOutputTokens: 8000,
           temperature: 0.2,
@@ -208,12 +125,12 @@ export default async function handler(req, res) {
             fileUri: fileUri,
           },
         },
-        { text: `<HISTORICO>${hystoric}</HISTORICO><PERGUNTA>${prompt}</PERGUNTA>` },
+        { text: prompt },
       ]);
 
       const respApi = result.response.text();
 
-      await saveMessages(emailUser, prompt, respApi, pdfFileDetails, pastaPDF);
+      await saveMessages(emailUser, prompt, respApi, pastaPDF);
 
       // Enviar resposta ao cliente
       return res.status(200).json({ response: respApi });

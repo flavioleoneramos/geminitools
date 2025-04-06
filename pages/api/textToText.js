@@ -48,7 +48,7 @@ async function getFormattedConversations(email) {
     );
 
     const formattedConversations = rows.map(row => {
-      return `**USÁRIO**: ${row.msguser}\n. **VOCÊ**: ${row.msgbot}.`;
+      return `Flávio: ${row.msguser}\n. Você: ${row.msgbot}.`;
     }).join('\n');
 
     return formattedConversations;
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
       let result;
       let hystoric = await getFormattedConversations(emailUser);
       hystoric = hystoric.replace(/<br>/g, '').replace(/\s+/g, ' ').trim();
-      //console.log('Histórico:', hystoric);
+      console.log('Histórico:', hystoric);
       //return res.status(200).json({ message: hystoric });
       if (model === 'gemini-2.0-flash-exp' || model === 'gemini-1.5-pro' || model === 'gemini-1.5-flash') {
         // Se o modelo for "gemini-2.0-flash-exp", usamos a API Gemini
@@ -78,13 +78,14 @@ export default async function handler(req, res) {
 
         const geminiModel = genAI.getGenerativeModel({
           model: model,
-          systemInstruction: `Você é um assistente pessoal baseado em inteligência artificial. Você deve responder às perguntas do usuário de forma clara e concisa. Você pode usar o histórico de conversas que estão dentro da tag <HISTORICO></HISTORICO> para melhorar suas respostas. Rsponda a pergunta contida dentro da tag <PERGUNTA></PERGUNTA>.`,
+          systemInstruction: `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos. Ele quer que você responda as perguntas de forma clara e concisa. Ele quer que você utilize o conteúdo contido entre as Tags <HISTORICO></HISTORICO> como lembranças das conversas anteriores. Ele quer que vocé responda a última pergunta enviada contida dentro da Tag <PERGUNTA></PERGUNTA>.`,
           generationConfig: {
             maxOutputTokens: 8000,
             temperature: 0.2,
           }
         });
 
+        
         result = await geminiModel.generateContent(`<HISTORICO>${hystoric}</HISTORICO><PERGUNTA>${texto}</PERGUNTA>`); // Usamos o histórico de conversas para melhorar as respostas, use como lembranças de conversas anteriores.\n Esta é a última mensagem do Usuário: ${texto}..`);
         const responseText = result.response.text();
 

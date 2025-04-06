@@ -5,8 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 export default function TextToText() {
 
     const [inputText, setInputText] = useState('');
-    const [result, setResult] = useState('');
-    const [model, setModel] = useState('gemini-2.0-flash-exp'); // Novo state para o modelo
+    const [model, setModel] = useState('gemini-1.5-pro'); // Novo state para o modelo
     const [conversas, setConversas] = useState([]);
     const [error, setError] = useState('');
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
@@ -80,7 +79,6 @@ export default function TextToText() {
                 body: JSON.stringify({ texto: textSalvo, model }) // Envia o texto e o modelo
             });
         const data = await response.json();
-        //setResult(data.message);
         await addMessageToConversas(data.message, 'bot');
 
     };
@@ -156,16 +154,13 @@ export default function TextToText() {
                     )}
                     <div ref={conversasEndRef}></div>
                 </div>
-
-                <div>
-                    <p>{result}</p>
-                </div>
                 <div>
                     <form onSubmit={handleSubmit} className={styles.form}>
                         <select value={model} onChange={(e) => setModel(e.target.value)}>
                             <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
                             <option value="gemini-1.5-pro">gemini-1.5-pro</option>
                             <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                            <option value="gpt-4o">gpt-4o</option>
                         </select>
                         <textarea
                             className={styles.textarea1}
