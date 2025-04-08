@@ -86,6 +86,52 @@ export default async function handler(req, res) {
     try {
 
       switch (model) {
+        case 'dall-e-3':
+          try {
+            const response = await openai.images.generate({
+              model: "dall-e-3",
+              prompt: text,
+              n: 1,
+              size: "1024x1024",
+            });
+
+            console.log(response.data[0].url);
+            const imageUrl = response.data[0].url;
+
+            // Faz o download da imagem a partir da URL
+            const imageResponse = await fetch(imageUrl);
+            if (!imageResponse.ok) {
+              throw new Error('Erro ao fazer o download da imagem');
+            }
+
+            const buffer = await imageResponse.buffer(); // Obtém o conteúdo binário da imagem
+
+            // Gera um nome único para o arquivo
+            const uniqueName = `${uuidv4()}.jpg`;
+
+            // Define o caminho para salvar a imagem
+            const uploadPath = path.join(process.cwd(), '/public/imagens', uniqueName);
+
+            // Cria a pasta se não existir
+            if (!fs.existsSync(path.dirname(uploadPath))) {
+              fs.mkdirSync(path.dirname(uploadPath), { recursive: true });
+            }
+
+            // Salva a imagem no sistema de arquivos
+            fs.writeFileSync(uploadPath, buffer);
+
+            const relativePath = `/imagens/${uniqueName}`;
+            console.log('Imagem salva em:', relativePath);
+
+            // Salva as mensagens no banco de dados
+            await saveMessages(emailUser, text, relativePath);
+
+            return res.status(200).json({ imageUrl: relativePath });
+          } catch (error) {
+            console.error("Erro ao gerar conteúdo:", error);
+            res.status(500).json({ error: 'Falha ao gerar a imagem' });
+          }
+          break;
         case 'gemini-2.0-flash-exp-image-generation':
           const contents = text;
 

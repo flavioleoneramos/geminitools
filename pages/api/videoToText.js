@@ -116,7 +116,7 @@ export default async function handler(req, res) {
           const finalPath = `/${relativePath}`;
           //console.log('Caminho relativo do vídeo:', finalPath);
 
-          const fileManager = new GoogleAIFileManager(process.env.API_KEY);
+          const fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
 
           const uploadResponse = await fileManager.uploadFile(videoPath, {
             mimeType: 'video/mp4',
@@ -125,7 +125,7 @@ export default async function handler(req, res) {
 
           const processedFile = await waitForFileToBeActive(uploadResponse.file.name, fileManager);
 
-          const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+          const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
           const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
 
           const result = await model.generateContent([

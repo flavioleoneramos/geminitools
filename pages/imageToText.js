@@ -7,6 +7,7 @@ const ImageToText = () => {
     const [prompt, setPrompt] = useState('');
     const [imageFile, setImageFile] = useState(null); // Armazena o arquivo de imagem
     const [responseText, setResponseText] = useState('');
+    const [model, setModel] = useState('gemini-1.5-pro'); // Modelo padrão
     const [error, setError] = useState('');
     const [conversas, setConversas] = useState([]);
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
@@ -95,6 +96,7 @@ const ImageToText = () => {
         formData.append('prompt', promptSalvo);
         formData.append('image', imageFile); // Adiciona o arquivo de imagem ao form data
         formData.append('filePath', filePath); // Adiciona o caminho do arquivo ao form data
+        formData.append('model', model); // Adiciona o modelo selecionado ao form data
 
         await addMessageToConversas(`${promptSalvo} <br> <Image src="${filePath}" width="400" height="400"/>`, 'user');
         try {
@@ -195,18 +197,27 @@ const ImageToText = () => {
             <div>
                 <form onSubmit={handleSubmit} className={styles.form}>
                     <textarea
-
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         required
                         placeholder="Digite o prompt"
                     />
+
                     <input
                         type="file"
                         accept="image/*"
                         onChange={(e) => setImageFile(e.target.files[0])} // Captura o arquivo de imagem
                         required
                     />
+
+                    <select
+                        value={model}
+                        onChange={(e) => setModel(e.target.value)} // Captura o modelo selecionado
+                        required
+                    >
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    </select>
 
                     <button type="submit">Enviar</button>
                 </form>

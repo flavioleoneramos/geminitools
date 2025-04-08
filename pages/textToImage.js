@@ -143,8 +143,8 @@ function TextToImage() {
                     placeholder="Digite seu texto aqui"
                 />
                 <select value={model} onChange={(e) => setModel(e.target.value)}>
-                    <option value="dall-e-3">DALL-E 3</option>
                     <option value="gemini-2.0-flash-exp-image-generation">gemini-2.0-flash-exp-image-generation</option>  {/* Ajuste se necesario */}
+                    <option value="dall-e-3">dall-e-3</option>
                     {/*<option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>   /* Ajuste se necessário */}
 
                 </select>

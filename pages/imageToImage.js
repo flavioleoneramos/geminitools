@@ -8,6 +8,7 @@ export default function ImageToImage() {
     const [image, setImage] = useState(null);
     const [text, setText] = useState('');
     const [responseMessage, setResponseMessage] = useState('');
+    const [model, setModel] = useState('gemini-2.0-flash-exp-image-generation'); // Modelo padrão
     const [error, setError] = useState('');
     const [conversas, setConversas] = useState([]);
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
@@ -44,7 +45,7 @@ export default function ImageToImage() {
     }, [emailUser]);
 
     const handleImageChange = (e) => {
-        setImage(e.target.files[0]);
+        setImage(e);
     };
 
 
@@ -82,6 +83,7 @@ export default function ImageToImage() {
         formData.append('text', promptSalvo);
         formData.append('image', image); // Adiciona o arquivo de imagem ao form data
         formData.append('filePath', filePath); // Adiciona o caminho do arquivo ao form data
+        formData.append('model', model); // Adiciona o modelo selecionado ao form data
 
         await addMessageToConversas(`${promptSalvo} <br> <img src="${filePath}" width="400" height="400"/>`, 'user');
         //return;
@@ -220,9 +222,27 @@ export default function ImageToImage() {
                 </div> */}
                 <div>
                     <form onSubmit={handleSubmit} className={styles.form}>
-                        <input type="file" accept="image/*" onChange={handleImageChange} required />
-                        <textarea value={text} onChange={(e) => setText(e.target.value)} required />
-                        <button type="submit">Submit</button>
+                        <textarea
+                            value={text}
+                            onChange={(e) => setText(e.target.value)}
+                            placeholder="Digite o prompt"
+                            required
+                        />
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageChange(e.target.files[0])}
+                            required
+                        />
+                        <select
+                            value={model}
+                            onChange={(e) => setModel(e.target.value)}
+                            required
+                        >
+                            <option value="gemini-2.0-flash-exp-image-generation">Gemini 2.0 Flash Exp</option>
+                            <option value="dall-e-2">Dall-e-2</option>
+                        </select>
+                        <button type="submit">Enviar</button>
                     </form>
                 </div>
 

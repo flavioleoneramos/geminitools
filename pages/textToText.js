@@ -161,12 +161,14 @@ export default function TextToText() {
                             <option value="gemini-1.5-pro">gemini-1.5-pro</option>
                             <option value="gemini-1.5-flash">gemini-1.5-flash</option>
                             <option value="gpt-4o">gpt-4o</option>
+                            <option value="deepseek-chat">deepseek-chat</option>
                         </select>
                         <textarea
                             className={styles.textarea1}
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                             placeholder="Digite o texto aqui"
+                            required
                         />
 
                         <button type="submit">Enviar</button>

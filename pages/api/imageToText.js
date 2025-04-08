@@ -2,8 +2,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import fs from 'fs';
 import path from 'path';
+import OpenAI from "openai";
 import formidable from 'formidable';
 import mysql from 'mysql2/promise';
+import { Messages } from 'openai/resources/beta/threads/messages.mjs';
+
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // Chave da API no arquivo .env
+});
 
 const emailUser = process.env.EMAILUSER;
 
@@ -74,7 +81,6 @@ export default async function handler(req, res) {
         },
       });
 
-
       // Parse do formulário
       form.parse(req, async (err, fields, files) => {
         if (err) {
@@ -84,49 +90,82 @@ export default async function handler(req, res) {
 
         const prompt = fields.prompt && Array.isArray(fields.prompt) ? fields.prompt[0] : fields.prompt; // Trata o prompt corretamente
         const imageFile = files.image && Array.isArray(files.image) ? files.image[0] : files.image; // Trata o arquivo de imagem
-        const pastaImagem = fields.filePath && Array.isArray(fields.filePath) ? fields.filePath[0] : fields.filePath;
+        const filePath = fields.filePath && Array.isArray(fields.filePath) ? fields.filePath[0] : fields.filePath; // Caminho do arquivo
+        const model = fields.model && Array.isArray(fields.model) ? fields.model[0] : fields.model; // Modelo selecionado
 
         // Verifique se o arquivo de imagem foi enviado corretamente
         if (!imageFile || !imageFile.filepath) {
           return res.status(400).json({ error: 'Arquivo de imagem não encontrado.' });
         }
 
-        // Continue com sua lógica existente para processar o arquivo com a API do Google AI
-        const fileManager = new GoogleAIFileManager(process.env.API_KEY);
+        let responseText;
 
-        // Upload do arquivo para o Google AI
-        const uploadResponse = await fileManager.uploadFile(imageFile.filepath, {
-          mimeType: imageFile.mimetype,
-          displayName: 'Imagem do usuário',
-        });
+        if (model === 'gemini-1.5-pro') {
+          // Processa a imagem com o modelo Gemini
+          const fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
 
-        const fileUri = uploadResponse.file.uri;
+          // Upload do arquivo para o Google AI
+          const uploadResponse = await fileManager.uploadFile(imageFile.filepath, {
+            mimeType: imageFile.mimetype,
+            displayName: 'Imagem do usuário',
+          });
 
-        const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+          const fileUri = uploadResponse.file.uri;
 
-        const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-pro',
-          generationConfig: {
-            maxOutputTokens: 8000,
-            temperature: 0.7,
-          }
-        });
+          const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-        const result = await model.generateContent([
-          {
-            fileData: {
-              mimeType: fileUri.mimetype,
-              fileUri: fileUri,
+          const geminiModel = genAI.getGenerativeModel({
+            model: 'gemini-1.5-pro',
+            generationConfig: {
+              maxOutputTokens: 8000,
+              temperature: 0.7,
             },
-          },
-          { text: prompt },
-        ]);
+          });
 
-        const respApi = result.response.text();
+          const result = await geminiModel.generateContent([
+            {
+              fileData: {
+                mimeType: imageFile.mimetype,
+                fileUri: fileUri,
+              },
+            },
+            { text: prompt },
+          ]);
 
-        // Enviar resposta ao cliente
-        await saveMessages(emailUser, prompt, respApi, pastaImagem);
-        return res.status(200).json({ response: respApi });
+          responseText = result.response.text();
+        } else if (model === 'gpt-4o-mini') {
+
+          console.log(imageFile.filepath);
+          // Processa a imagem com o modelo GPT-4o Mini
+          const base64Image = fs.readFileSync(imageFile.filepath, "base64"); // Lê o arquivo local como Base64
+
+          const response = await openai.responses.create({
+            model: "gpt-4o-mini",
+            input: [
+              {
+                role: "user",
+                content: [
+                  { type: "input_text", text: prompt },
+                  {
+                    type: "input_image",
+                    image_url: `data:image/jpeg;base64,${base64Image}`, // Usa o Base64 da imagem
+                  },
+                ],
+              },
+            ],
+          });
+
+          console.log(response.output_text);
+          responseText = response.output_text;
+        } else {
+          return res.status(400).json({ error: 'Modelo inválido.' });
+        }
+
+        // Salva as mensagens no banco de dados
+        await saveMessages(emailUser, prompt, responseText, filePath);
+
+        // Retorna a resposta ao cliente
+        return res.status(200).json({ response: responseText });
       });
     } catch (error) {
       console.error('Error:', error);

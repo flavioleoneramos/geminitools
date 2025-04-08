@@ -74,7 +74,7 @@ export default async function handler(req, res) {
       //return res.status(200).json({ message: hystoric });
       if (model === 'gemini-2.0-flash-exp' || model === 'gemini-1.5-pro' || model === 'gemini-1.5-flash') {
         // Se o modelo for "gemini-2.0-flash-exp", usamos a API Gemini
-        const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
         const geminiModel = genAI.getGenerativeModel({
           model: model,
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
           }
         });
 
-        
+
         result = await geminiModel.generateContent(`<HISTORICO>${hystoric}</HISTORICO><PERGUNTA>${texto}</PERGUNTA>`); // Usamos o histórico de conversas para melhorar as respostas, use como lembranças de conversas anteriores.\n Esta é a última mensagem do Usuário: ${texto}..`);
         const responseText = result.response.text();
 
@@ -100,18 +100,38 @@ export default async function handler(req, res) {
           apiKey: process.env.OPENAI_API_KEY, // Chave da API no arquivo .env
         });
 
+        const promptUser = `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos. Ele quer que você responda as perguntas de forma clara e concisa. Ele quer que você utilize o conteúdo contido entre as Tags <HISTORICO>${hystoric}</HISTORICO> como lembranças das conversas anteriores. Ele quer que vocé responda a última pergunta enviada contida dentro da Tag <PERGUNTA>${texto}</PERGUNTA>.`;
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",  // Certifique-se de usar o nome correto do modelo
-          messages: [{ role: "user", content: texto }],
+          messages: [{ role: "user", content: promptUser }],
           store: true,
           temperature: 0.2,
-          max_tokens: 4096,
+          max_tokens: 4096, //Quantidade de tokens contidos na resposta
         });
 
         const responseText = completion.choices[0].message.content;
         await saveMessages(emailUser, texto, responseText);
         res.status(200).json({ message: responseText });
 
+      } else if (model === "deepseek-chat") {
+        // Se o modelo for "gpt-4o", usamos a nova API da OpenAI
+        const openai = new OpenAI({
+          baseURL: 'https://api.deepseek.com', // URL base da API DeepSeek
+          apiKey: process.env.DEEPSEEK_API_KEY, // Chave da API no arquivo .env
+        });
+
+        const promptUser = `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos. Ele quer que você responda as perguntas de forma clara e concisa. Ele quer que você utilize o conteúdo contido entre as Tags <HISTORICO>${hystoric}</HISTORICO> como lembranças das conversas anteriores. Ele quer que vocé responda a última pergunta enviada contida dentro da Tag <PERGUNTA>${texto}</PERGUNTA>.`;
+        const completion = await openai.chat.completions.create({
+          model: "deepseek-chat",  // Certifique-se de usar o nome correto do modelo
+          messages: [{ role: "user", content: promptUser }],
+          store: true,
+          temperature: 0.2,
+          max_tokens: 4096, //Quantidade de tokens contidos na resposta
+        });
+
+        const responseText = completion.choices[0].message.content;
+        await saveMessages(emailUser, texto, responseText);
+        res.status(200).json({ message: responseText });
       } else {
         res.status(400).json({ error: 'Modelo inválido' });
       }

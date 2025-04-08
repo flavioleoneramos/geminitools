@@ -5,6 +5,12 @@ import formidable from 'formidable';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import mysql from 'mysql2/promise';
+import OpenAI from "openai";
+import sharp from 'sharp';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // Certifique-se de que a chave está no .env
+});
 
 export const config = {
   api: {
@@ -70,57 +76,101 @@ async function salvarArquivo(buffer) {
   }
 }
 
-async function generateImage(text, imagePath) {
-  try {
+async function generateImage(model, text, imagePath) {
+  if (model === 'gemini-2.0-flash-exp-image-generation') {
 
-    // Lê o arquivo da imagem e converte para Base64
-    const imageData = fs.readFileSync(imagePath);
-    const base64Image = imageData.toString('base64');
+    try {
 
-    // Prepara os conteúdos para a API do Gemini
-    const contents = [
-      { text: text },
-      {
-        inlineData: {
-          mimeType: 'image/jpeg', // Certifique-se de usar o MIME type correto
-          data: base64Image,
+      // Lê o arquivo da imagem e converte para Base64
+      const imageData = fs.readFileSync(imagePath);
+      const base64Image = imageData.toString('base64');
+
+      // Prepara os conteúdos para a API do Gemini
+      const contents = [
+        { text: text },
+        {
+          inlineData: {
+            mimeType: 'image/jpeg', // Certifique-se de usar o MIME type correto
+            data: base64Image,
+          },
         },
-      },
-    ];
+      ];
 
-    const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-    // Configura o modelo do Gemini
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp-image-generation',
-      generationConfig: {
-        responseModalities: ['Text', 'Image'],
-      },
+      // Configura o modelo do Gemini
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp-image-generation',
+        generationConfig: {
+          responseModalities: ['Text', 'Image'],
+        },
+      });
+
+
+      // Gera o conteúdo usando a API do Gemini
+      const response = await model.generateContent(contents);
+
+      for (const part of response.response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          const generatedImageBase64 = part.inlineData.data;
+          const buffer = Buffer.from(generatedImageBase64, 'base64');
+
+          // Salva a imagem gerada no servidor
+          const uniqueName = `${uuidv4()}.jpg`;
+          const generatedImagePath = path.join(process.cwd(), '/public/imagens', uniqueName);
+          fs.writeFileSync(generatedImagePath, buffer);
+
+          // Retorna o caminho relativo da imagem gerada
+          return `/imagens/${uniqueName}`;
+        }
+      }
+
+      throw new Error('Nenhuma imagem foi gerada pela API do Gemini.');
+    } catch (error) {
+      console.error('Erro ao gerar a imagem:', error);
+      throw error;
+    }
+  } else if (model === 'dall-e-2') {
+
+    console.log(imagePath);
+    // Edita a imagem usando a API do OpenAI
+    const response = await openai.images.edit({
+      image: fs.createReadStream(imagePath), // Imagem original
+      //mask: fs.createReadStream(imagePath), // Máscara (pode ser a mesma imagem ou outra)
+      prompt: text, // Prompt para edição
     });
 
+    const imageUrl = response.data[0].url;
+    console.log(imageUrl);
 
-    // Gera o conteúdo usando a API do Gemini
-    const response = await model.generateContent(contents);
-
-    for (const part of response.response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        const generatedImageBase64 = part.inlineData.data;
-        const buffer = Buffer.from(generatedImageBase64, 'base64');
-
-        // Salva a imagem gerada no servidor
-        const uniqueName = `${uuidv4()}.jpg`;
-        const generatedImagePath = path.join(process.cwd(), '/public/imagens', uniqueName);
-        fs.writeFileSync(generatedImagePath, buffer);
-
-        // Retorna o caminho relativo da imagem gerada
-        return `/imagens/${uniqueName}`;
-      }
+    // Faz o download da imagem a partir da URL
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error('Erro ao fazer o download da imagem');
     }
 
-    throw new Error('Nenhuma imagem foi gerada pela API do Gemini.');
-  } catch (error) {
-    console.error('Erro ao gerar a imagem:', error);
-    throw error;
+    // Converte o conteúdo da resposta para um Buffer
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer); // Converte o ArrayBuffer para Buffer
+
+    // Gera um nome único para o arquivo
+    const uniqueName = `${uuidv4()}.png`; // Salva como .png, já que a imagem gerada é PNG
+
+    // Define o caminho para salvar a imagem
+    const uploadPath = path.join(process.cwd(), '/public/imagens', uniqueName);
+
+    // Cria a pasta se não existir
+    if (!fs.existsSync(path.dirname(uploadPath))) {
+      fs.mkdirSync(path.dirname(uploadPath), { recursive: true });
+    }
+
+    // Salva a imagem no sistema de arquivos
+    fs.writeFileSync(uploadPath, buffer);
+
+    const relativePath = `/imagens/${uniqueName}`;
+    console.log('Imagem salva em:', relativePath);
+
+    return relativePath;
   }
 }
 
@@ -137,7 +187,9 @@ export default async function handler(req, res) {
         }
 
         const text = fields.text && Array.isArray(fields.text) ? fields.text[0] : fields.text; // Trata o texto corretamente
+        const model = fields.model && Array.isArray(fields.model) ? fields.model[0] : fields.model; // Trata o texto corretamente
         const imageFile = files.image && Array.isArray(files.image) ? files.image[0] : files.image; // Trata o arquivo de imagem
+        const filePath = fields.filePath && Array.isArray(fields.filePath) ? fields.filePath[0] : fields.filePath; // Trata o texto corretamente
 
         if (!text || !imageFile) {
           return res.status(400).json({ error: 'Texto ou imagem ausente na requisição.' });
@@ -150,7 +202,7 @@ export default async function handler(req, res) {
         const userImagePath = await salvarArquivo(imageBuffer);
 
         // Gera a imagem editada usando a API do Gemini
-        const generatedImagePath = await generateImage(text, imageFile.filepath);
+        const generatedImagePath = await generateImage(model, text, imageFile.filepath);
 
         // Salva as mensagens no banco de dados
         await saveMessages(emailUser, text, generatedImagePath, userImagePath);
