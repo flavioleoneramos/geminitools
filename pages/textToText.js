@@ -2,6 +2,8 @@ import Head from 'next/head'
 import Link from 'next/Link'
 import styles from '../styles/Home.module.css'
 import { useState, useEffect, useRef } from 'react';
+import { FaTrash } from 'react-icons/fa';
+import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 export default function TextToText() {
 
     const [inputText, setInputText] = useState('');
@@ -10,6 +12,53 @@ export default function TextToText() {
     const [error, setError] = useState('');
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
     const [emailUser, setEmailUser] = useState('');
+    const [showPopup, setShowPopup] = useState(false);
+
+    const handleDeleteClick = () => {
+        setShowPopup(true); // Exibe o popup
+    };
+
+    const handleConfirmDelete = async () => {
+        setShowPopup(false); // Fecha o popup
+        try {
+            await deleteConversations(); // Chama a função para excluir as conversas
+            await fetchConversas(); // Atualiza a lista de conversas
+            // alert('Conversas excluídas com sucesso!');
+        } catch (error) {
+            console.error('Erro ao excluir conversas:', error);
+        }
+    };
+
+    const handleCancelDelete = () => {
+        setShowPopup(false); // Fecha o popup sem excluir
+    };
+
+    async function deleteConversations() {
+
+        const AudioToText = 'TextToText'; // Nome da tabela a ser excluída
+        try {
+            const response = await fetch('/api/deleteConversa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: emailUser, nomeTabela: AudioToText }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao excluir conversas');
+            }
+
+            alert('Conversas excluídas com sucesso!');
+            return data; // Retorna os dados da resposta, como `affectedRows`
+        } catch (error) {
+            console.error('Erro ao excluir conversas:', error);
+            alert('Erro ao excluir conversas');
+            throw error; // Lança o erro para ser tratado pelo chamador
+        }
+    }
 
     useEffect(() => {
         const fetchEmailUser = async () => {
@@ -140,6 +189,9 @@ export default function TextToText() {
                 <header className={styles.header1}>
                     <p><Link href="./">Index</Link></p>
                     <p>Text To Text</p>
+                    <p><button onClick={handleDeleteClick}>
+                        <FaTrash size={20} color="red" />
+                    </button></p>
                 </header>
                 <div className={styles.conversas1}>
                     {conversas.length > 0 ? (
@@ -154,6 +206,13 @@ export default function TextToText() {
                     )}
                     <div ref={conversasEndRef}></div>
                 </div>
+                {showPopup && (
+                    <ConfirmationPopup
+                        message="Tem certeza de que deseja excluir todas as conversas?"
+                        onConfirm={handleConfirmDelete}
+                        onCancel={handleCancelDelete}
+                    />
+                )}
                 <div>
                     <form onSubmit={handleSubmit} className={styles.form}>
                         <select value={model} onChange={(e) => setModel(e.target.value)}>
@@ -164,7 +223,7 @@ export default function TextToText() {
                             <option value="deepseek-chat">deepseek-chat</option>
                         </select>
                         <textarea
-                            className={styles.textarea1}
+                            className={styles.textarea}
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                             placeholder="Digite o texto aqui"

@@ -123,7 +123,6 @@
     width: 100%;
     /* Largura total da viewport */
     margin-top: 5x;
-    border: 1px solid rgb(238, 234, 234);
     padding: 5px;
 }
 
@@ -143,7 +142,7 @@
 .form textarea {
     width: 100%;
     /* Ocupa 100% da largura do contêiner pai */
-    height: 70px;
+    min-height: 73px;
     /* Altura fixa de 150px */
     margin-bottom: 10px;
     /* Espaço entre os campos */
@@ -154,19 +153,6 @@
     font-size: 12pt;
 }
 
-.form textarea1 {
-    width: 100%;
-    /* Ocupa 100% da largura do contêiner pai */
-    height: 60px;
-    /* Altura fixa de 150px */
-    margin-bottom: 10px;
-    /* Espaço entre os campos */
-    box-sizing: border-box;
-    /* Inclui padding e bordas no tamanho total */
-    padding: 5px;
-    font-family: Georgia, 'Times New Roman', Times, serif;
-    font-size: 12pt;
-}
 
 .header {
     display: flex;
@@ -282,4 +268,66 @@
   
   .error-popup button:hover {
     background-color: #0056b3;
+  }
+
+  .popupOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .popup {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    color: black;
+  }
+  
+  .buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-around;
+  }
+  
+  .confirmButton {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .confirmButton:hover {
+    background-color: #45a049;
+  }
+  
+  .cancelButton {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .cancelButton:hover {
+    background-color: #e53935;
+  }
+
+
+  .selectContainer{
+    display: flex;
+    justify-content: space-between;
   }

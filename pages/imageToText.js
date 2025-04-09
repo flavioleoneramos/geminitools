@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/Link';
 import styles from '../styles/Home.module.css';
+import { FaTrash } from 'react-icons/fa';
+import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 
 const ImageToText = () => {
     const [prompt, setPrompt] = useState('');
@@ -12,6 +14,53 @@ const ImageToText = () => {
     const [conversas, setConversas] = useState([]);
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
     const [emailUser, setEmailUser] = useState('');
+    const [showPopup, setShowPopup] = useState(false);
+
+    const handleDeleteClick = () => {
+        setShowPopup(true); // Exibe o popup
+    };
+
+    const handleConfirmDelete = async () => {
+        setShowPopup(false); // Fecha o popup
+        try {
+            await deleteConversations(); // Chama a função para excluir as conversas
+            await fetchConversas(); // Atualiza a lista de conversas
+            // alert('Conversas excluídas com sucesso!');
+        } catch (error) {
+            console.error('Erro ao excluir conversas:', error);
+        }
+    };
+
+    const handleCancelDelete = () => {
+        setShowPopup(false); // Fecha o popup sem excluir
+    };
+
+    async function deleteConversations() {
+
+        const AudioToText = 'ImageToText'; // Nome da tabela a ser excluída
+        try {
+            const response = await fetch('/api/deleteConversa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: emailUser, nomeTabela: AudioToText }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao excluir conversas');
+            }
+
+            alert('Conversas excluídas com sucesso!');
+            return data; // Retorna os dados da resposta, como `affectedRows`
+        } catch (error) {
+            console.error('Erro ao excluir conversas:', error);
+            alert('Erro ao excluir conversas');
+            throw error; // Lança o erro para ser tratado pelo chamador
+        }
+    }
 
     useEffect(() => {
         const fetchEmailUser = async () => {
@@ -167,6 +216,9 @@ const ImageToText = () => {
             <header className={styles.header}>
                 <p><Link href="./">Index</Link></p>
                 <p>Image To Text</p>
+                <p><button onClick={handleDeleteClick}>
+                    <FaTrash size={20} color="red" />
+                </button></p>
             </header>
 
             <div className={styles.conversas}>
@@ -194,31 +246,40 @@ const ImageToText = () => {
             {//error && <p style={{ color: 'red' }}>{error}</p>
             }
 
+            {showPopup && (
+                <ConfirmationPopup
+                    message="Tem certeza de que deseja excluir todas as conversas?"
+                    onConfirm={handleConfirmDelete}
+                    onCancel={handleCancelDelete}
+                />
+            )}
+
             <div>
                 <form onSubmit={handleSubmit} className={styles.form}>
+
                     <textarea
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         required
                         placeholder="Digite o prompt"
                     />
+                    <div className={styles.selectContainer}>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setImageFile(e.target.files[0])} // Captura o arquivo de imagem
+                            required
+                        />
 
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setImageFile(e.target.files[0])} // Captura o arquivo de imagem
-                        required
-                    />
-
-                    <select
-                        value={model}
-                        onChange={(e) => setModel(e.target.value)} // Captura o modelo selecionado
-                        required
-                    >
-                        <option value="gpt-4o-mini">GPT-4o Mini</option>
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                    </select>
-
+                        <select
+                            value={model}
+                            onChange={(e) => setModel(e.target.value)} // Captura o modelo selecionado
+                            required
+                        >
+                            <option value="gpt-4o-mini">GPT-4o Mini</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        </select>
+                    </div>
                     <button type="submit">Enviar</button>
                 </form>
             </div>

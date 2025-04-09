@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/Link';
 import styles from '../styles/Home.module.css';
+import { FaTrash } from 'react-icons/fa';
+import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 
 const PdfToText = () => {
     const [prompt, setPrompt] = useState('');
@@ -11,6 +13,53 @@ const PdfToText = () => {
     const [conversas, setConversas] = useState([]);
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
     const [emailUser, setEmailUser] = useState('');
+    const [showPopup, setShowPopup] = useState(false);
+
+    const handleDeleteClick = () => {
+        setShowPopup(true); // Exibe o popup
+    };
+
+    const handleConfirmDelete = async () => {
+        setShowPopup(false); // Fecha o popup
+        try {
+            await deleteConversations(); // Chama a função para excluir as conversas
+            await fetchConversas(); // Atualiza a lista de conversas
+            // alert('Conversas excluídas com sucesso!');
+        } catch (error) {
+            console.error('Erro ao excluir conversas:', error);
+        }
+    };
+
+    const handleCancelDelete = () => {
+        setShowPopup(false); // Fecha o popup sem excluir
+    };
+
+    async function deleteConversations() {
+
+        const AudioToText = 'PDFToText'; // Nome da tabela a ser excluída
+        try {
+            const response = await fetch('/api/deleteConversa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: emailUser, nomeTabela: AudioToText }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao excluir conversas');
+            }
+
+            alert('Conversas excluídas com sucesso!');
+            return data; // Retorna os dados da resposta, como `affectedRows`
+        } catch (error) {
+            console.error('Erro ao excluir conversas:', error);
+            alert('Erro ao excluir conversas');
+            throw error; // Lança o erro para ser tratado pelo chamador
+        }
+    }
 
     useEffect(() => {
         const fetchEmailUser = async () => {
@@ -168,6 +217,9 @@ const PdfToText = () => {
             <header className={styles.header}>
                 <p><Link href="./">Index</Link></p>
                 <p>PDF To Text</p>
+                <p><button onClick={handleDeleteClick}>
+                    <FaTrash size={20} color="red" />
+                </button></p>
             </header>
             <div className={styles.conversas}>
                 {conversas.length > 0 ? (
@@ -206,7 +258,13 @@ const PdfToText = () => {
                     <button type="submit">Enviar</button>
                 </form>
             </div>
-
+            {showPopup && (
+                <ConfirmationPopup
+                    message="Tem certeza de que deseja excluir todas as conversas?"
+                    onConfirm={handleConfirmDelete}
+                    onCancel={handleCancelDelete}
+                />
+            )}
             {//error && <p style={{ color: 'red' }}>{error}</p>
             }
         </div>
