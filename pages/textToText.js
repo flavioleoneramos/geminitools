@@ -2,7 +2,7 @@ import Head from 'next/head'
 import Link from 'next/Link'
 import styles from '../styles/Home.module.css'
 import { useState, useEffect, useRef } from 'react';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaHome} from 'react-icons/fa';
 import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 export default function TextToText() {
 
@@ -35,14 +35,14 @@ export default function TextToText() {
 
     async function deleteConversations() {
 
-        const AudioToText = 'TextToText'; // Nome da tabela a ser excluída
+        const TextToText = 'TextToText'; // Nome da tabela a ser excluída
         try {
             const response = await fetch('/api/deleteConversa', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email: emailUser, nomeTabela: AudioToText }),
+                body: JSON.stringify({ email: emailUser, nomeTabela: TextToText }),
             });
 
             const data = await response.json();
@@ -187,7 +187,7 @@ export default function TextToText() {
 
             <main className={styles.main}>
                 <header className={styles.header1}>
-                    <p><Link href="./">Index</Link></p>
+                    <p><Link href="./"><FaHome size={30} color="white" /></Link></p>
                     <p>Text To Text</p>
                     <p><button onClick={handleDeleteClick}>
                         <FaTrash size={20} color="red" />

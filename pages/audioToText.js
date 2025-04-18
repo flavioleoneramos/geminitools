@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/Link';
 import styles from '../styles/Home.module.css';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaHome} from 'react-icons/fa';
 import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 const AudioTotext = () => {
     const [prompt, setPrompt] = useState('');
@@ -212,7 +212,7 @@ const AudioTotext = () => {
     return (
         <div>
             <header className={styles.header}>
-                <p><Link href="./">Index</Link></p>
+                <p><Link href="./"><FaHome size={30} color="white" /></Link></p>
                 <p>Audio To Text</p>
                 <p><button onClick={handleDeleteClick}>
                     <FaTrash size={20} color="red" />

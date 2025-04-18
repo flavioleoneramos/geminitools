@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     }
 
     const { text, voice } = req.body;
-
+    console.log('Voz recebida:', voice);
     if (!text || !voice) {
         return res.status(400).json({ message: 'Texto e voz são obrigatórios' });
     }
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
     try {
         // Faz a chamada para a API de síntese de fala da OpenAI
         const mp3 = await openai.audio.speech.create({
-            model: 'tts-1', // Modelo de síntese de fala
+            model: 'gpt-4o-mini-tts', // Modelo de síntese de fala
             voice: voice,   // Tipo de voz escolhido
             input: text,    // Texto a ser convertido em áudio
             response_format: 'mp3',

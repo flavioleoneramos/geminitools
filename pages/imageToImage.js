@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import styles from '../styles/Home.module.css';
 import Link from 'next/Link';
 import Image from 'next/image';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaHome} from 'react-icons/fa';
 import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 export default function ImageToImage() {
     const [image, setImage] = useState(null);
@@ -37,14 +37,14 @@ export default function ImageToImage() {
 
     async function deleteConversations() {
 
-        const AudioToText = 'ImageToImage'; // Nome da tabela a ser excluída
+        const imageToImage = 'ImageToImage'; // Nome da tabela a ser excluída
         try {
             const response = await fetch('/api/deleteConversa', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email: emailUser, nomeTabela: AudioToText }),
+                body: JSON.stringify({ email: emailUser, nomeTabela: imageToImage }),
             });
 
             const data = await response.json();
@@ -223,7 +223,7 @@ export default function ImageToImage() {
                 <link rel="icon" href="/favicon.ico" />
             </Head>
             <header className={styles.header}>
-                <p><Link href="./">Index</Link></p>
+                <p><Link href="./"><FaHome size={30} color="white" /></Link></p>
                 <p>Image To Image</p>
                 <p><button onClick={handleDeleteClick}>
                     <FaTrash size={20} color="red" />

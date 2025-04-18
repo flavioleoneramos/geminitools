@@ -1,5 +1,5 @@
 import mysql from 'mysql2/promise';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaHome} from 'react-icons/fa';
 
 async function handler(req, res) {
     if (req.method !== 'POST') {

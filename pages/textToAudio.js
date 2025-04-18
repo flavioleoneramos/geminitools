@@ -16,6 +16,7 @@ export default function TextToAudio() {
     const [emailUser, setEmailUser] = useState('');
     const [showPopup, setShowPopup] = useState(false);
 
+    const voices = ['alloy','echo','fable','onyx','nova', 'shimmer','verse','sage','coral','ballad','ash'];
     const handleDeleteClick = () => {
         setShowPopup(true); // Exibe o popup
     };
@@ -37,14 +38,14 @@ export default function TextToAudio() {
 
     async function deleteConversations() {
 
-        const AudioToText = 'TextToAudio'; // Nome da tabela a ser excluída
+        const TextToAudio = 'TextToAudio'; // Nome da tabela a ser excluída
         try {
             const response = await fetch('/api/deleteConversa', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email: emailUser, nomeTabela: AudioToText }),
+                body: JSON.stringify({ email: emailUser, nomeTabela: TextToAudio }),
             });
 
             const data = await response.json();
@@ -61,8 +62,6 @@ export default function TextToAudio() {
             throw error; // Lança o erro para ser tratado pelo chamador
         }
     }
-
-    const voices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
 
     useEffect(() => {
         const fetchEmailUser = async () => {
@@ -103,6 +102,10 @@ export default function TextToAudio() {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
+
+        const textoSalvo = text; // Remove espaços em branco do início e do fim
+
+        setText('');
         await addMessageToConversas(text, 'user');
         // Envia uma requisição POST para o backend
         const response = await fetch('/api/textToAudio/', {
@@ -110,14 +113,13 @@ export default function TextToAudio() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ text, voice }),
+            body: JSON.stringify({ text: textoSalvo, voice }),
         });
 
         if (response.ok) {
             const data = await response.json();
             //setAudioUrl(data.audioUrl); // Recebe a URL do áudio gerada no backend
             await addMessageToConversas(data.audioUrl, 'bot');
-            setText('');
         } else {
             console.error('Erro ao converter texto em áudio');
         }

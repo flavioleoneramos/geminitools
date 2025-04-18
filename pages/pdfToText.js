@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/Link';
 import styles from '../styles/Home.module.css';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaHome} from 'react-icons/fa';
 import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 
 const PdfToText = () => {
@@ -36,14 +36,14 @@ const PdfToText = () => {
 
     async function deleteConversations() {
 
-        const AudioToText = 'PDFToText'; // Nome da tabela a ser excluída
+        const PDFToText = 'PDFToText'; // Nome da tabela a ser excluída
         try {
             const response = await fetch('/api/deleteConversa', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email: emailUser, nomeTabela: AudioToText }),
+                body: JSON.stringify({ email: emailUser, nomeTabela: PDFToText }),
             });
 
             const data = await response.json();
@@ -215,7 +215,7 @@ const PdfToText = () => {
     return (
         <div>
             <header className={styles.header}>
-                <p><Link href="./">Index</Link></p>
+                <p><Link href="./"><FaHome size={30} color="white" /></Link></p>
                 <p>PDF To Text</p>
                 <p><button onClick={handleDeleteClick}>
                     <FaTrash size={20} color="red" />

@@ -64,7 +64,7 @@
 
 
 .conversas1 {
-    height: 75vh;
+    height: 76vh;
     /* Altura fixa de 76% da viewport */
     width: 100%;
     overflow-y: auto;
@@ -160,13 +160,14 @@
     justify-content: space-around;
     height: 50px;
     position: relative;
+    align-items: center;
 }
 
 .header1 {
     display: flex;
     width: 100%;
     justify-content: space-around;
-    height: 40px;
+    height: 50px;
     align-items: center;
 }
 
@@ -196,7 +197,7 @@
 
 .headerIndex ul li {
     display: flex;
-    padding: 28px;
+    padding: 23px;
     width: 98%;
     justify-content: center;
     flex-direction: column;
@@ -330,4 +331,9 @@
   .selectContainer{
     display: flex;
     justify-content: space-between;
+  }
+
+  .msgbotvideo{
+    max-width: 350px;
+    max-height: 350px;
   }

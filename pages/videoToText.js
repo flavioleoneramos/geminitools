@@ -2,7 +2,7 @@ import Head from 'next/head';
 import Link from 'next/Link';
 import styles from '../styles/Home.module.css';
 import { useState, useEffect, useRef } from 'react';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaHome} from 'react-icons/fa';
 import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 
 export default function VideoToText() {
@@ -219,7 +219,7 @@ export default function VideoToText() {
 
       <main className={styles.main}>
         <header className={styles.header}>
-          <p><Link href="./">Index</Link></p>
+          <p><Link href="./"><FaHome size={30} color="white" /></Link></p>
           <p>Video To Text</p>
           <p><button onClick={handleDeleteClick}>
             <FaTrash size={20} color="red" />

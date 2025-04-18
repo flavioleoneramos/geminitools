@@ -42,6 +42,9 @@ export default function Home() {
             <li>
               <Link href="/pdfToText/">PDF To Text</Link>
             </li>
+            <li>
+              <Link href="/textToVideo/">Text To Video</Link>
+            </li>
           </ul>
         </header>
       </main>
