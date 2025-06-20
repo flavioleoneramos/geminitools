@@ -12,11 +12,13 @@ async function handler(req, res) {
     'TextToImage',
     'ImageToText',
     'ImageToImage',
+    'ImageToVideo',
     'TextToAudio',
     'AudioToText',
     'TextToVideo',
     'VideoToText',
-    'PDFToText'
+    'PDFToText',
+    'TextToMusic'
   ];
 
   if (!tabelasPermitidas.includes(nomeTabela)) {

@@ -5,8 +5,9 @@ import styles from '../styles/Home.module.css'
 import React, { useState, useEffect, useRef } from 'react';
 import { FaTrash, FaHome } from 'react-icons/fa';
 import ConfirmationPopup from '/pages/api/ConfirmationPopup';
+import { Readable } from "stream";
 
-function TextToVideo() {
+function ImageToVideo() {
     const [text, setText] = useState('');
     const [model, setModel] = useState('veo-2.0-generate-001');
     const [error, setError] = useState('');
@@ -14,6 +15,8 @@ function TextToVideo() {
     const [emailUser, setEmailUser] = useState('');
     const [showPopup, setShowPopup] = useState(false);
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
+    const [imageFile, setImageFile] = useState(null); // Armazena o arquivo de imagem
+    const [prompt, setPrompt] = useState('');
 
     const handleDeleteClick = () => {
         setShowPopup(true); // Exibe o popup
@@ -36,14 +39,14 @@ function TextToVideo() {
 
     async function deleteConversations() {
 
-        const TextToVideo = 'TextToVideo'; // Nome da tabela a ser excluída
+        const ImageToVideo = 'ImageToVideo'; // Nome da tabela a ser excluída
         try {
             const response = await fetch('/api/deleteConversa', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email: emailUser, nomeTabela: TextToVideo }),
+                body: JSON.stringify({ email: emailUser, nomeTabela: ImageToVideo }),
             });
 
             const data = await response.json();
@@ -98,18 +101,44 @@ function TextToVideo() {
         ]);
     }
 
+    async function salvarArquivo(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/salvarArquivo', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('Erro ao salvar o arquivo');
+        }
+
+        const data = await response.json();
+        return data.filePath;
+    }
+
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        const textoSalvo = text;
-        setText('');
-        await addMessageToConversas(textoSalvo, 'user');
-        const response = await fetch('/api/textToVideo/', {
+        const textoSalvo = prompt;
+        setPrompt('');
+
+        const filePath = await salvarArquivo(imageFile);
+
+        const formData = new FormData();
+        formData.append('prompt', textoSalvo);
+        formData.append('image', imageFile); // Adiciona o arquivo de imagem ao form data
+        formData.append('filePath', filePath); // Adiciona o caminho do arquivo ao form data
+        //formData.append('model', model); // Adiciona o modelo selecionado ao form data
+
+        await addMessageToConversas(`${textoSalvo} <br> <Image src="${filePath}" width="400" height="400"/>`, 'user');
+        const response = await fetch('/api/imageToVideo/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ textoSalvo, model }),
+            body: JSON.stringify({ textoSalvo, filePath, imageFile }),
         });
 
         const data = await response.json();
@@ -138,7 +167,7 @@ function TextToVideo() {
 
     async function fetchConversas() {
         try {
-            const conversas = await recuperaConversas(emailUser, 'TextToVideo');
+            const conversas = await recuperaConversas(emailUser, 'ImageToVideo');
             setConversas(conversas);
         } catch (err) {
             setError('Erro ao carregar conversas.');
@@ -160,7 +189,7 @@ function TextToVideo() {
         <div>
             <header className={styles.header}>
                 <p><Link href="./"><FaHome size={30} color="white" /></Link></p>
-                <p>Text To Video</p>
+                <p>Image To Video</p>
                 <p><button onClick={handleDeleteClick}>
                     <FaTrash size={20} color="red" />
                 </button></p>
@@ -169,7 +198,19 @@ function TextToVideo() {
                 {conversas.length > 0 ? (
                     conversas.map((conversa, index) => (
                         <div key={index} className={styles.conversaItem}>
-                            {conversa.msguser && <p className={styles.msguser}>{conversa.msguser}</p>}
+                            {conversa.msguser && (
+                                <p className={styles.msguser}>
+                                    <span dangerouslySetInnerHTML={{ __html: conversa.msguser }}></span><br />
+                                    {conversa.linkArquivo && (
+                                        <img
+                                            src={conversa.linkArquivo}
+                                            width={400}
+                                            height={400}
+                                            alt="Imagem enviada pelo usuário"
+                                        />
+                                    )}
+                                </p>
+                            )}
                             {conversa.msgbot && <p className={styles.msgbot}><video className={styles.msgbotvideo} controls>
                                 <source src={conversa.msgbot} type="video/mp4" />
                                 Seu navegador não suporta a reprodução de vídeos.
@@ -193,9 +234,15 @@ function TextToVideo() {
                 <textarea
                     rows={5}
                     cols={50}
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Digite seu texto aqui"
+                />
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files[0])} // Captura o arquivo de imagem
+                    required
                 />
                 <button type="submit">Converter</button>
             </form>
@@ -204,4 +251,4 @@ function TextToVideo() {
     );
 }
 
-export default TextToVideo;
+export default ImageToVideo;

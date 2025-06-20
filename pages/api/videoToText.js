@@ -126,7 +126,13 @@ export default async function handler(req, res) {
           const processedFile = await waitForFileToBeActive(uploadResponse.file.name, fileManager);
 
           const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-          const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+          const model = genAI.getGenerativeModel({
+            model: 'gemini-1.5-pro',
+            generationConfig: {
+              maxOutputTokens: 8000,
+              temperature: 0.7,
+            }
+          });
 
           const result = await model.generateContent([
             {

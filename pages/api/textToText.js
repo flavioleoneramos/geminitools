@@ -43,7 +43,7 @@ async function getFormattedConversations(email) {
 
   try {
     const [rows] = await connection.execute(
-      'SELECT msguser, msgbot FROM `TextToText` WHERE email = ? ORDER BY id DESC LIMIT 2',
+      'SELECT msguser, msgbot FROM `TextToText` WHERE email = ? ORDER BY id DESC LIMIT 1',
       [email]
     );
 
@@ -68,25 +68,25 @@ export default async function handler(req, res) {
 
     try {
       let result;
-      let hystoric = await getFormattedConversations(emailUser);
+      /*let hystoric = await getFormattedConversations(emailUser);
       hystoric = hystoric.replace(/<br>/g, '').replace(/\s+/g, ' ').trim();
       console.log('Histórico:', hystoric);
-      //return res.status(200).json({ message: hystoric });
+      //return res.status(200).json({ message: hystoric });*/
       if (model === 'gemini-2.0-flash-exp' || model === 'gemini-1.5-pro' || model === 'gemini-1.5-flash') {
         // Se o modelo for "gemini-2.0-flash-exp", usamos a API Gemini
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
         const geminiModel = genAI.getGenerativeModel({
           model: model,
-          systemInstruction: `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos. Ele quer que você responda as perguntas de forma clara e concisa. Ele quer que você utilize o conteúdo contido entre as Tags <HISTORICO></HISTORICO> como lembranças das conversas anteriores. Ele quer que vocé responda a última pergunta enviada contida dentro da Tag <PERGUNTA></PERGUNTA>.`,
+          systemInstruction: `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos que mora no Brasil e fala em Português.`,
           generationConfig: {
             maxOutputTokens: 8000,
-            temperature: 0.2,
+            temperature: 0.7,
           }
         });
 
 
-        result = await geminiModel.generateContent(`<HISTORICO>${hystoric}</HISTORICO><PERGUNTA>${texto}</PERGUNTA>`); // Usamos o histórico de conversas para melhorar as respostas, use como lembranças de conversas anteriores.\n Esta é a última mensagem do Usuário: ${texto}..`);
+        result = await geminiModel.generateContent(`${texto}`); 
         const responseText = result.response.text();
 
         const formattedResponse = await formatText(responseText);
@@ -100,12 +100,12 @@ export default async function handler(req, res) {
           apiKey: process.env.OPENAI_API_KEY, // Chave da API no arquivo .env
         });
 
-        const promptUser = `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos. Ele quer que você responda as perguntas de forma clara e concisa. Ele quer que você utilize o conteúdo contido entre as Tags <HISTORICO>${hystoric}</HISTORICO> como lembranças das conversas anteriores. Ele quer que vocé responda a última pergunta enviada contida dentro da Tag <PERGUNTA>${texto}</PERGUNTA>.`;
+        const promptUser = `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos que mora no Brasil e fala em Português.`;
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",  // Certifique-se de usar o nome correto do modelo
           messages: [{ role: "user", content: promptUser }],
           store: true,
-          temperature: 0.2,
+          temperature: 0.7,
           max_tokens: 4096, //Quantidade de tokens contidos na resposta
         });
 
@@ -120,12 +120,12 @@ export default async function handler(req, res) {
           apiKey: process.env.DEEPSEEK_API_KEY, // Chave da API no arquivo .env
         });
 
-        const promptUser = `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos. Ele quer que você responda as perguntas de forma clara e concisa. Ele quer que você utilize o conteúdo contido entre as Tags <HISTORICO>${hystoric}</HISTORICO> como lembranças das conversas anteriores. Ele quer que vocé responda a última pergunta enviada contida dentro da Tag <PERGUNTA>${texto}</PERGUNTA>.`;
+        const promptUser = `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos que mora no Brasil e fala em Português. Responda a seguinte pergunta: ${texto}`;
         const completion = await openai.chat.completions.create({
           model: "deepseek-chat",  // Certifique-se de usar o nome correto do modelo
           messages: [{ role: "user", content: promptUser }],
           store: true,
-          temperature: 0.2,
+          temperature: 0.7,
           max_tokens: 4096, //Quantidade de tokens contidos na resposta
         });
 

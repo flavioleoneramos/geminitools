@@ -94,12 +94,13 @@ export default async function handler(req, res) {
 
       // Inicia a operação de geração de vídeo
       let operation = await ai.models.generateVideos({
-        model: model,
+        model: "veo-2.0-generate-001",
         prompt: textoSalvo,
         config: {
           personGeneration: "allow_adult",
           aspectRatio: "16:9",
           numberOfVideos: 1,
+          durationSeconds: 5, // Duração do vídeo em segundos
         },
       });
 

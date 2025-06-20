@@ -299,7 +299,7 @@ export default function ImageToImage() {
                                 onChange={(e) => setModel(e.target.value)}
                                 required
                             >
-                                <option value="gemini-2.0-flash-exp-image-generation">Gemini 2.0 Flash Exp</option>
+                                <option value="gemini-2.0-flash-exp-image-generation">gemini-2.0-flash-exp-image-generation</option>
                                 <option value="dall-e-2">Dall-e-2</option>
                             </select>
                         </div>

@@ -87,6 +87,7 @@ export default async function handler(req, res) {
           console.error('Error parsing form:', err);
           return res.status(400).json({ error: 'Erro ao processar o formulário' });
         }
+        
 
         const prompt = fields.prompt && Array.isArray(fields.prompt) ? fields.prompt[0] : fields.prompt; // Trata o prompt corretamente
         const imageFile = files.image && Array.isArray(files.image) ? files.image[0] : files.image; // Trata o arquivo de imagem

@@ -6,9 +6,9 @@ import styles from '../styles/Home.module.css'
 import { FaTrash } from 'react-icons/fa';
 import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 
-export default function TextToAudio() {
+export default function TextToMusic() {
     const [text, setText] = useState('');
-    const [model, setModel] = useState('gpt-4o-mini-tts');
+    const [model, setModel] = useState('mureka-6');
     const [voice, setVoice] = useState('alloy');
     const [audioUrl, setAudioUrl] = useState('');
     const [conversas, setConversas] = useState([]);
@@ -39,14 +39,14 @@ export default function TextToAudio() {
 
     async function deleteConversations() {
 
-        const TextToAudio = 'TextToAudio'; // Nome da tabela a ser excluída
+        const TextToMusic = 'TextToMusic'; // Nome da tabela a ser excluída
         try {
             const response = await fetch('/api/deleteConversa', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email: emailUser, nomeTabela: TextToAudio }),
+                body: JSON.stringify({ email: emailUser, nomeTabela: TextToMusic }),
             });
 
             const data = await response.json();
@@ -109,7 +109,7 @@ export default function TextToAudio() {
         setText('');
         await addMessageToConversas(text, 'user');
         // Envia uma requisição POST para o backend
-        const response = await fetch('/api/textToAudio/', {
+        const response = await fetch('/api/textToMusic/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ export default function TextToAudio() {
 
     async function fetchConversas() {
         try {
-            const conversas = await recuperaConversas(emailUser, 'TextToAudio');
+            const conversas = await recuperaConversas(emailUser, 'TextToMusic');
             setConversas(conversas);
         } catch (err) {
             setError('Erro ao carregar conversas.');
@@ -167,7 +167,7 @@ export default function TextToAudio() {
         <div>
             <header className={styles.header}>
                 <p><Link href="./">Index</Link></p>
-                <p>Text To Audio</p>
+                <p>Text To Music</p>
                 <p><button onClick={handleDeleteClick}>
                     <FaTrash size={20} color="red" />
                 </button></p>
@@ -209,9 +209,7 @@ export default function TextToAudio() {
                         <section className={styles.selectsAudio}>
                             <div>
                                 <select value={model} onChange={(e) => setModel(e.target.value)}>
-                                    <option value="tts-1">tts-1</option>
-                                    <option value="tts-1-hd">tts-1-hd</option>
-                                    <option value="gpt-4o-mini-tts">gpt-4o-mini-tts</option>
+                                    <option value="mureka-6">mureka-6</option>
                                 </select>
                             </div>
                             <div>
