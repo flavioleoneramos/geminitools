@@ -57,7 +57,7 @@ async function saveMessages(email, msgUser, msgBot) {
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'gemini',
+    database: 'atualizaemotiva',
   });
 
   try {
@@ -100,6 +100,7 @@ export default async function handler(req, res) {
           personGeneration: "allow_adult",
           aspectRatio: "16:9",
           numberOfVideos: 1,
+          durationSeconds: 5, // Duração do vídeo em segundos
         },
       });
 

@@ -11,7 +11,7 @@ async function saveMessages(email, msgUser, msgBot, pdfUser) {
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'gemini',
+    database: 'atualizaemotiva',
   });
 
   try {
@@ -91,6 +91,7 @@ export default async function handler(req, res) {
         fs.mkdirSync(pdfDir);
       }
 
+
       // Caminho final do arquivo, garantindo a extensão original do PDF
       const originalExtension = path.extname(pdfFile.originalFilename); // Obtém a extensão original do arquivo
       const pdfFilePath = path.join(pdfDir, pdfFile.newFilename + originalExtension);
@@ -111,7 +112,8 @@ export default async function handler(req, res) {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
       const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro-exp-03-25',
+        systemInstruction: `Você é um expert em produzir textos e conteúdos sobre notícias e textos motivacionais para serem usados na elaboração de vídeos para as redes sociais de um canal chamado Atualiza e Motiva. Você deve utilizar o conteúdo contido entre a Tag <HISTORICO></HISTORICO> como memória ou lembranças das conversas anteriores. Você deve responder a última pergunta enviada contida dentro da Tag <PERGUNTA></PERGUNTA>.`,
         generationConfig: {
           maxOutputTokens: 8000,
           temperature: 0.2,

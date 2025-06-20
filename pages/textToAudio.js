@@ -8,6 +8,7 @@ import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 
 export default function TextToAudio() {
     const [text, setText] = useState('');
+    const [model, setModel] = useState('gpt-4o-mini-tts');
     const [voice, setVoice] = useState('alloy');
     const [audioUrl, setAudioUrl] = useState('');
     const [conversas, setConversas] = useState([]);
@@ -16,7 +17,7 @@ export default function TextToAudio() {
     const [emailUser, setEmailUser] = useState('');
     const [showPopup, setShowPopup] = useState(false);
 
-    const voices = ['alloy','echo','fable','onyx','nova', 'shimmer','verse','sage','coral','ballad','ash'];
+    const voices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'verse', 'sage', 'coral', 'ballad', 'ash'];
     const handleDeleteClick = () => {
         setShowPopup(true); // Exibe o popup
     };
@@ -113,7 +114,7 @@ export default function TextToAudio() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ text: textoSalvo, voice }),
+            body: JSON.stringify({ text: textoSalvo, voice, model }),
         });
 
         if (response.ok) {
@@ -205,13 +206,24 @@ export default function TextToAudio() {
                             onChange={(e) => setText(e.target.value)}
                             placeholder="Digite seu texto aqui"
                         />
-                        <select value={voice} onChange={(e) => setVoice(e.target.value)}>
-                            {voices.map((v) => (
-                                <option key={v} value={v}>
-                                    {v}
-                                </option>
-                            ))}
-                        </select>
+                        <section className={styles.selectsAudio}>
+                            <div>
+                                <select value={model} onChange={(e) => setModel(e.target.value)}>
+                                    <option value="tts-1">tts-1</option>
+                                    <option value="tts-1-hd">tts-1-hd</option>
+                                    <option value="gpt-4o-mini-tts">gpt-4o-mini-tts</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select value={voice} onChange={(e) => setVoice(e.target.value)}>
+                                    {voices.map((v) => (
+                                        <option key={v} value={v}>
+                                            {v}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </section>
                         <button type="submit">Converter</button>
                     </form>
                 </div>

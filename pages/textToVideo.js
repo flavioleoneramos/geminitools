@@ -160,7 +160,7 @@ function TextToVideo() {
         <div>
             <header className={styles.header}>
                 <p><Link href="./"><FaHome size={30} color="white" /></Link></p>
-                <p>Text To Image</p>
+                <p>Text To Video</p>
                 <p><button onClick={handleDeleteClick}>
                     <FaTrash size={20} color="red" />
                 </button></p>

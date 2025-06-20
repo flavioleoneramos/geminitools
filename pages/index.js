@@ -45,6 +45,9 @@ export default function Home() {
             <li>
               <Link href="/textToVideo/">Text To Video</Link>
             </li>
+            <li>
+              <Link href="/imageToVideo/">Image To Video</Link>
+            </li>
           </ul>
         </header>
       </main>

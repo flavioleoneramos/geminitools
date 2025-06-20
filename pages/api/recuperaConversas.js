@@ -12,6 +12,7 @@ async function handler(req, res) {
     'TextToImage',
     'ImageToText',
     'ImageToImage',
+    'ImageToVideo',
     'TextToAudio',
     'AudioToText',
     'TextToVideo',
@@ -28,7 +29,7 @@ async function handler(req, res) {
       host: 'localhost',
       user: 'root',
       password: '',
-      database: 'gemini'
+      database: 'atualizaemotiva'
     });
 
     const query = `

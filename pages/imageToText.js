@@ -9,7 +9,7 @@ const ImageToText = () => {
     const [prompt, setPrompt] = useState('');
     const [imageFile, setImageFile] = useState(null); // Armazena o arquivo de imagem
     const [responseText, setResponseText] = useState('');
-    const [model, setModel] = useState('gemini-1.5-pro'); // Modelo padrão
+    const [model, setModel] = useState('gemini-2.5-pro-exp-03-25'); // Modelo padrão
     const [error, setError] = useState('');
     const [conversas, setConversas] = useState([]);
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
@@ -278,6 +278,7 @@ const ImageToText = () => {
                         >
                             <option value="gpt-4o-mini">GPT-4o Mini</option>
                             <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                            <option value="gemini-2.5-pro-exp-03-25">gemini-2.5-pro-exp-03-25</option>
                         </select>
                     </div>
                     <button type="submit">Enviar</button>
