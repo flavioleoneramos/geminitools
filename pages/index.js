@@ -48,9 +48,12 @@ export default function Home() {
             <li>
               <Link href="/imageToVideo/">Image To Video</Link>
             </li>
+<<<<<<< HEAD
             <li>
               <Link href="/textToMusic/">Text To Music</Link>
             </li>
+=======
+>>>>>>> 5a6a1926ceef0abb4354faf1499e07aa4295906a
           </ul>
         </header>
       </main>

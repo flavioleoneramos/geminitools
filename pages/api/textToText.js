@@ -9,7 +9,7 @@ async function saveMessages(email, msgUser, msgBot) {
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'gemini',
+    database: 'atualizaemotiva',
   });
 
   try {
@@ -38,12 +38,16 @@ async function getFormattedConversations(email) {
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'gemini'
+    database: 'atualizaemotiva'
   });
 
   try {
     const [rows] = await connection.execute(
+<<<<<<< HEAD
       'SELECT msguser, msgbot FROM `TextToText` WHERE email = ? ORDER BY id DESC LIMIT 1',
+=======
+      'SELECT msguser, msgbot FROM `TextToText` WHERE email = ? ORDER BY id DESC LIMIT 1000',
+>>>>>>> 5a6a1926ceef0abb4354faf1499e07aa4295906a
       [email]
     );
 
@@ -68,16 +72,26 @@ export default async function handler(req, res) {
 
     try {
       let result;
+<<<<<<< HEAD
       /*let hystoric = await getFormattedConversations(emailUser);
       hystoric = hystoric.replace(/<br>/g, '').replace(/\s+/g, ' ').trim();
       console.log('Histórico:', hystoric);
       //return res.status(200).json({ message: hystoric });*/
       if (model === 'gemini-2.0-flash-exp' || model === 'gemini-1.5-pro' || model === 'gemini-1.5-flash') {
         // Se o modelo for "gemini-2.0-flash-exp", usamos a API Gemini
+=======
+      //let hystoric = await getFormattedConversations(emailUser);
+      //hystoric = hystoric.replace(/<br>/g, '').replace(/\s+/g, ' ').trim();
+      //console.log('Histórico:', hystoric);
+      //return res.status(200).json({ message: hystoric });
+      if (model === 'gemini-2.0-flash-exp' || model === 'gemini-1.5-pro' || model === 'gemini-1.5-flash' || model === 'gemini-2.5-pro-exp-03-25') {
+        // Se o modelo for "gemini-2.0-flash-exp", usamos a API Geminis
+>>>>>>> 5a6a1926ceef0abb4354faf1499e07aa4295906a
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
         const geminiModel = genAI.getGenerativeModel({
           model: model,
+<<<<<<< HEAD
           systemInstruction: `Você é um assistente pessoal baseado em inteligência artificial do Flávio Leone Ramos que mora no Brasil e fala em Português.`,
           generationConfig: {
             maxOutputTokens: 8000,
@@ -87,8 +101,19 @@ export default async function handler(req, res) {
 
 
         result = await geminiModel.generateContent(`${texto}`); 
-        const responseText = result.response.text();
+=======
+          //systemInstruction: `Você é um expert em produzir textos e conteúdos sobre notícias e textos motivacionais para serem usados na elaboração de vídeos para as redes sociais de um canal chamado Atualiza e Motiva. Você deve utilizar o conteúdo contido entre a Tag <HISTORICO></HISTORICO> como memória ou lembranças das conversas anteriores. Você deve responder a última pergunta enviada contida dentro da Tag <PERGUNTA></PERGUNTA>.`,
+          generationConfig: {
+            maxOutputTokens: 8000,
+            temperature: 0.8,
+          }
+        });
 
+//
+        result = await geminiModel.generateContent(`<PERGUNTA>${texto}</PERGUNTA>`); // Usamos o histórico de conversas para melhorar as respostas, use como lembranças de conversas anteriores.\n Esta é a última mensagem do Usuário: ${texto}..`);
+>>>>>>> 5a6a1926ceef0abb4354faf1499e07aa4295906a
+        const responseText = result.response.text();
+//<HISTORICO>${hystoric}</HISTORICO>\
         const formattedResponse = await formatText(responseText);
         await saveMessages(emailUser, texto, formattedResponse);
         res.status(200).json({ message: formattedResponse });

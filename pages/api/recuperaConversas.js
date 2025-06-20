@@ -30,7 +30,7 @@ async function handler(req, res) {
       host: 'localhost',
       user: 'root',
       password: '',
-      database: 'gemini'
+      database: 'atualizaemotiva'
     });
 
     const query = `

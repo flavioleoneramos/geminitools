@@ -7,7 +7,11 @@ import ConfirmationPopup from '/pages/api/ConfirmationPopup';
 export default function TextToText() {
 
     const [inputText, setInputText] = useState('');
+<<<<<<< HEAD
     const [model, setModel] = useState('deepseek-chat'); // Novo state para o modelo
+=======
+    const [model, setModel] = useState('gemini-2.5-pro-exp-03-25'); // Novo state para o modelo
+>>>>>>> 5a6a1926ceef0abb4354faf1499e07aa4295906a
     const [conversas, setConversas] = useState([]);
     const [error, setError] = useState('');
     const conversasEndRef = useRef(null); // Referência para o fim do contêiner de conversas
@@ -221,6 +225,7 @@ export default function TextToText() {
                             <option value="gemini-1.5-flash">gemini-1.5-flash</option>
                             <option value="gpt-4o">gpt-4o</option>
                             <option value="deepseek-chat">deepseek-chat</option>
+                            <option value="gemini-2.5-pro-exp-03-25">gemini-2.5-pro-exp-03-25</option>
                         </select>
                         
                         <textarea

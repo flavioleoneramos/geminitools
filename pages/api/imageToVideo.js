@@ -57,7 +57,11 @@ async function saveMessages(email, msgUser, msgBot) {
         host: 'localhost',
         user: 'root',
         password: '',
+<<<<<<< HEAD
         database: 'gemini',
+=======
+        database: 'atualizaemotiva',
+>>>>>>> 5a6a1926ceef0abb4354faf1499e07aa4295906a
     });
 
     try {

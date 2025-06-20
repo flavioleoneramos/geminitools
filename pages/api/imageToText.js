@@ -19,7 +19,7 @@ async function saveMessages(email, msgUser, msgBot, imageUser) {
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'gemini',
+    database: 'atualizaemotiva',
   });
 
   try {
@@ -89,6 +89,7 @@ export default async function handler(req, res) {
         }
         
 
+
         const prompt = fields.prompt && Array.isArray(fields.prompt) ? fields.prompt[0] : fields.prompt; // Trata o prompt corretamente
         const imageFile = files.image && Array.isArray(files.image) ? files.image[0] : files.image; // Trata o arquivo de imagem
         const filePath = fields.filePath && Array.isArray(fields.filePath) ? fields.filePath[0] : fields.filePath; // Caminho do arquivo
@@ -101,7 +102,7 @@ export default async function handler(req, res) {
 
         let responseText;
 
-        if (model === 'gemini-1.5-pro') {
+        if (model === 'gemini-2.5-pro-exp-03-25' || model === 'gemini-1.5-pro') {
           // Processa a imagem com o modelo Gemini
           const fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
 
@@ -116,7 +117,7 @@ export default async function handler(req, res) {
           const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
           const geminiModel = genAI.getGenerativeModel({
-            model: 'gemini-1.5-pro',
+            model: model,
             generationConfig: {
               maxOutputTokens: 8000,
               temperature: 0.7,

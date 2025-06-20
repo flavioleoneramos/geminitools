@@ -30,7 +30,7 @@ async function handler(req, res) {
             host: 'localhost',
             user: 'root',
             password: '',
-            database: 'gemini'
+            database: 'atualizaemotiva'
         });
 
         // Exclui todas as mensagens da tabela com base no e-mail do usuário

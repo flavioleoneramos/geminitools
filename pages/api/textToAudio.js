@@ -9,7 +9,7 @@ async function saveMessages(email, msgUser, msgBot) {
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'gemini',
+    database: 'atualizaemotiva',
   });
 
   try {
@@ -44,6 +44,7 @@ export default async function handler(req, res) {
 
   const { text, voice, model } = req.body;
   console.log('Voz recebida:', voice);
+<<<<<<< HEAD
   //console.log('Texto recebido:', text);
   console.log('Modelo recebido:', model);
 
@@ -65,6 +66,28 @@ export default async function handler(req, res) {
     const fileName = `audio_${Date.now()}.mp3`;
     const filePath = path.join(process.cwd(), 'public', 'audios', fileName);
 
+=======
+  console.log('Texto recebido:', text);
+  console.log('Modelo recebido:', model);
+  if (!text || !voice) {
+    return res.status(400).json({ message: 'Texto e voz são obrigatórios' });
+  }
+
+
+  try {
+    // Faz a chamada para a API de síntese de fala da OpenAI
+    const mp3 = await openai.audio.speech.create({
+      model: model, // Modelo de síntese de fala
+      voice: voice,   // Tipo de voz escolhido
+      input: text,    // Texto a ser convertido em áudio
+      response_format: 'mp3',
+    });
+
+    // Gera o caminho do arquivo para salvar o áudio
+    const fileName = `audio_${Date.now()}.mp3`;
+    const filePath = path.join(process.cwd(), 'public', 'audios', fileName);
+
+>>>>>>> 5a6a1926ceef0abb4354faf1499e07aa4295906a
     // Converte o arrayBuffer em um buffer e grava no arquivo
     const buffer = Buffer.from(await mp3.arrayBuffer());
     await fs.promises.writeFile(filePath, buffer);

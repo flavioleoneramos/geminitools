@@ -18,7 +18,7 @@ async function saveMessages(email, msgUser, msgBot, audioPath) {
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'gemini',
+    database: 'atualizaemotiva',
   });
 
 
@@ -114,7 +114,7 @@ export default async function handler(req, res) {
 
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro-exp-03-25',
         generationConfig: {
           maxOutputTokens: 8000,
           temperature: 0.7,
